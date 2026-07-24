@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { fetchHealth } from "../lib/api";
-import { MarqueeStrip } from "./MarqueeStrip";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
@@ -70,7 +69,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         </div>
-        <MarqueeStrip />
       </header>
 
       <main className="relative mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">{children}</main>

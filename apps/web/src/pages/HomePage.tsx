@@ -92,21 +92,10 @@ export function HomePage() {
                 </span>
               </div>
               <p className="relative mt-3 text-sm leading-relaxed text-en-muted">{f.description}</p>
-              <div className="relative mt-8 flex items-center justify-between">
+              <div className="relative mt-8">
                 <span className="text-xs font-medium text-en-primary-bright opacity-0 transition-opacity group-hover:opacity-100">
                   作成を開始 →
                 </span>
-                <div className="flex h-14 flex-1 max-w-[140px] items-end justify-end gap-1 opacity-70">
-                  {[35, 58, 42, 72, 48, 65].map((h, i) => (
-                    <motion.div
-                      key={i}
-                      className="w-2 rounded-t-sm bg-gradient-to-t from-en-primary/50 to-en-secondary/90"
-                      initial={{ height: 0 }}
-                      animate={{ height: `${h}%` }}
-                      transition={{ delay: 0.25 + i * 0.04, duration: 0.55, ease }}
-                    />
-                  ))}
-                </div>
               </div>
             </motion.button>
           );

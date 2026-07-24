@@ -8,12 +8,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.cjs.json && node -e \"require('fs').copyFileSync('dist-cjs/index.js','dist/index.cjs')\"",
     "dev": "tsc --watch"
   },
   "devDependencies": {
