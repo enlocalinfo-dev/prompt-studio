@@ -1,0 +1,1 @@
+export { runGenerate, runHealth } from "../../api/lib/generate-service.js";

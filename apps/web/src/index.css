@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * ENロジカル ブランドトンマナ（Prompt Studio）
+ * 正: 提案スライド / Genspark design_system 既定
+ *   primary #188BA8 · secondary #0E7ABE · accent-strong #E63946（強調のみ）
+ * ダークUI: 表紙グラデ #0A1F3C → #134E5E をベースにしたネイビー
+ */
+@theme {
+  --color-en-deep: #060b14;
+  --color-en-surface: #0a1220;
+  --color-en-panel: #0f1829;
+  --color-en-panel-hover: #152238;
+  --color-en-border: rgba(148, 180, 210, 0.12);
+  --color-en-border-strong: rgba(148, 180, 210, 0.2);
+  --color-en-primary: #188ba8;
+  --color-en-secondary: #0e7abe;
+  --color-en-primary-bright: #2ec4e8;
+  --color-en-accent: #6ecde8;
+  --color-en-accent-strong: #e63946;
+  --color-en-muted: #8b9cb0;
+  --color-en-text: #eef4f8;
+  --color-en-on-primary: #ffffff;
+  --font-sans: "Noto Sans JP", "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    system-ui, sans-serif;
+}
+
+body {
+  @apply bg-en-deep text-en-text antialiased;
+  font-family: var(--font-sans);
+}
+
+.en-mesh {
+  background-color: var(--color-en-deep);
+  background-image:
+    radial-gradient(ellipse 85% 50% at 50% -12%, rgba(24, 139, 168, 0.28), transparent 58%),
+    radial-gradient(ellipse 45% 38% at 100% 8%, rgba(14, 122, 190, 0.14), transparent),
+    radial-gradient(ellipse 40% 32% at 0% 88%, rgba(19, 78, 94, 0.35), transparent),
+    linear-gradient(180deg, #0a1f3c 0%, var(--color-en-deep) 42%, #060b14 100%);
+}
+
+.glass-panel {
+  @apply border border-en-border bg-en-panel/75 backdrop-blur-2xl;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 24px 48px -24px rgba(0, 0, 0, 0.55);
+}
+
+.glass-panel-hover {
+  @apply transition-[box-shadow,border-color,transform] duration-300;
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(24, 139, 168, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(46, 196, 232, 0.08) inset,
+    0 28px 56px -20px rgba(14, 122, 190, 0.28);
+}
+
+.text-gradient-en {
+  @apply bg-gradient-to-r from-en-primary-bright via-en-accent to-en-secondary bg-clip-text text-transparent;
+}
+
+.input-en {
+  @apply w-full rounded-xl border border-en-border bg-en-deep/70 px-3.5 py-2.5 text-sm text-en-text outline-none transition-[border-color,box-shadow];
+}
+
+.input-en:focus {
+  border-color: rgba(24, 139, 168, 0.55);
+  box-shadow: 0 0 0 3px rgba(24, 139, 168, 0.18);
+}
+
+@keyframes orb-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -18px) scale(1.05);
+  }
+}
+
+.orb {
+  animation: orb-float 14s ease-in-out infinite;
+}
+
+.orb-delay {
+  animation-delay: -7s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .orb,
+  .orb-delay {
+    animation: none;
+  }
+}

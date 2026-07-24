@@ -1,0 +1,1 @@
+export { loadMasterTemplate, templatesMeta } from "../../api/lib/templates.js";

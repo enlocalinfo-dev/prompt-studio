@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/appshell.tsx","./src/components/finetunepanel.tsx","./src/components/toast.tsx","./src/hooks/usespeechrecognition.ts","./src/lib/api.ts","./src/lib/storage.ts","./src/pages/createpage.tsx","./src/pages/homepage.tsx","./src/pages/resultpage.tsx"],"version":"5.9.3"}
