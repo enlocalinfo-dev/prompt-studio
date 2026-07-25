@@ -1,31 +1,25 @@
 import { createRequire } from "node:module";
+import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** Vercel serverless（CJS バンドル）から @prompt-studio/core を安全に読み込む */
 export async function loadPromptStudioCore() {
-  const candidates = [
-    path.join(process.cwd(), "packages/core/dist/index.cjs"),
-    path.join(process.cwd(), "packages/core/dist/index.js"),
-    path.join(process.cwd(), "../packages/core/dist/index.cjs"),
-  ];
+  const cwd = process.cwd();
+  const pkgJson = path.join(cwd, "package.json");
+  const req = fs.existsSync(pkgJson)
+    ? createRequire(pkgJson)
+    : createRequire(path.join(cwd, "api/generate.ts"));
 
-  for (const entry of candidates) {
-    if (entry.endsWith(".cjs")) {
-      try {
-        const req = createRequire(import.meta.url);
-        return req(entry) as typeof import("@prompt-studio/core");
-      } catch {
-        /* try next */
-      }
-    } else {
-      try {
-        return await import(pathToFileURL(entry).href);
-      } catch {
-        /* try next */
-      }
-    }
+  const cjsPath = path.join(cwd, "packages/core/dist/index.cjs");
+  if (fs.existsSync(cjsPath)) {
+    return req(cjsPath) as typeof import("@prompt-studio/core");
   }
 
-  throw new Error("@prompt-studio/core を読み込めません（dist/index.cjs をビルドしてください）");
+  const esmPath = path.join(cwd, "packages/core/dist/index.js");
+  if (fs.existsSync(esmPath)) {
+    return await import(pathToFileURL(esmPath).href);
+  }
+
+  throw new Error("@prompt-studio/core を読み込めません（pnpm --filter @prompt-studio/core build）");
 }

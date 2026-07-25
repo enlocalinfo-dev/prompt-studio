@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json && node -e \"require('fs').copyFileSync('dist-cjs/index.js','dist/index.cjs')\"",
+    "build": "tsc && tsc -p tsconfig.cjs.json && node scripts/bundle-core-cjs.mjs",
     "dev": "tsc --watch"
   },
   "devDependencies": {

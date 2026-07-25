@@ -39,7 +39,8 @@ export async function postGenerate(body: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    const detail = typeof err.detail === "string" ? err.detail : "";
+    throw new Error(detail ? `${err.error ?? "error"}: ${detail}` : (err.error ?? `HTTP ${res.status}`));
   }
   return res.json();
 }
