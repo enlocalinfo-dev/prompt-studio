@@ -13,8 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tuning: Tuning;
       references?: import("@prompt-studio/core").ReferenceBundle;
     };
-    if (formatId !== "A" && formatId !== "B") {
-      res.status(400).json({ error: "invalid formatId" });
+    if (formatId !== "B") {
+      res.status(400).json({
+        error: "invalid formatId",
+        detail: "このアプリは研修デリバリー（B）のみ対応しています。一般提案（A）は Cursor で作成してください。",
+      });
       return;
     }
     if (!tuning?.documentDate) {

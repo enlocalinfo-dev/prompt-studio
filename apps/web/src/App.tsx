@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ToastProvider } from "./components/Toast";
 import { CreatePage } from "./pages/CreatePage";
@@ -19,7 +19,8 @@ function AnimatedRoutes() {
       >
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/create/:formatId" element={<CreatePage />} />
+          <Route path="/create" element={<CreatePage />} />
+          <Route path="/create/:formatId" element={<Navigate to="/create" replace />} />
           <Route path="/result" element={<ResultPage />} />
         </Routes>
       </motion.div>

@@ -68,8 +68,8 @@ export function ResultPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav(`/create/${session.formatId}`)}>
-        ← 入力に戻る
+      <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create")}>
+        ← 骨子入力に戻る
       </Button>
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">

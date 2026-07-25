@@ -36,15 +36,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </motion.div>
             <div className="min-w-0">
               <span className="block truncate text-[15px] font-semibold tracking-tight text-en-text">
-                Prompt Studio
+                研修デリバリー Prompt
               </span>
               <span className="block truncate text-[11px] text-en-muted">
-                「わからない」から任せられる伴走ツール
+                B標準 · 8枚 · Genspark 用プロンプト
               </span>
             </div>
           </Link>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {llm !== null && (
               <motion.span
                 initial={{ opacity: 0, scale: 0.92 }}
@@ -60,12 +60,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               {loc.pathname === "/" && (
                 <motion.span
-                  layoutId="nav-active"
+                  layoutId="nav-overview"
                   className="absolute inset-0 rounded-xl bg-white/8 ring-1 ring-white/5"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
-              <span className="relative">ホーム</span>
+              <span className="relative">概要</span>
+            </Link>
+            <Link
+              to="/create"
+              className={`relative rounded-xl px-3 py-2 text-sm ${loc.pathname.startsWith("/create") ? "text-en-text" : "text-en-muted hover:text-en-text"}`}
+            >
+              {loc.pathname.startsWith("/create") && (
+                <motion.span
+                  layoutId="nav-create"
+                  className="absolute inset-0 rounded-xl bg-white/8 ring-1 ring-white/5"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative">骨子入力</span>
             </Link>
           </div>
         </div>

@@ -1,46 +1,49 @@
-import type {
-  Extracted,
-  FormatId,
-  PromptSegment,
-  ReferenceBundle,
-  TrainingDeliveryBrief,
-  Tuning,
-} from "@prompt-studio/core";
-import { defaultTrainingBrief, defaultTuning } from "@prompt-studio/core";
+import type { FormatId, ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
+import { defaultTuning, defaultTrainingBrief } from "@prompt-studio/core";
 
-const KEY = "prompt-studio-tuning";
+const KEY_B = "prompt-studio-tuning-B";
 
 export function todayJa(): string {
   const d = new Date();
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-export function loadTuning(formatId: FormatId): Tuning {
+export function loadTuningB(): TuningB {
   try {
-    const raw = localStorage.getItem(`${KEY}-${formatId}`);
-    if (raw) return JSON.parse(raw) as Tuning;
+    const raw = localStorage.getItem(KEY_B);
+    if (raw) return JSON.parse(raw) as TuningB;
   } catch {
     /* ignore */
   }
-  return defaultTuning(formatId, todayJa());
+  return defaultTuning("B", todayJa()) as TuningB;
 }
 
-export function saveTuning(formatId: FormatId, tuning: Tuning): void {
-  localStorage.setItem(`${KEY}-${formatId}`, JSON.stringify(tuning));
+/** @deprecated B専用アプリ — loadTuningB を使用 */
+export function loadTuning(_formatId: FormatId): TuningB {
+  return loadTuningB();
+}
+
+export function saveTuningB(tuning: TuningB): void {
+  localStorage.setItem(KEY_B, JSON.stringify(tuning));
+}
+
+/** @deprecated saveTuningB を使用 */
+export function saveTuning(_formatId: FormatId, tuning: TuningB): void {
+  saveTuningB(tuning);
 }
 
 export interface SessionPayload {
-  formatId: FormatId;
+  formatId: "B";
   transcript: string;
-  tuning: Tuning;
+  tuning: TuningB;
   references?: ReferenceBundle;
   result?: {
     markdown: string;
     gensparkText: string;
     folderNameSuggestion: string;
     usedLlm: boolean;
-    segments?: PromptSegment[];
-    structured?: Extracted;
+    segments?: import("@prompt-studio/core").PromptSegment[];
+    structured?: import("@prompt-studio/core").Extracted;
   };
 }
 
@@ -49,7 +52,10 @@ const SESSION = "prompt-studio-session";
 export function loadSession(): SessionPayload | null {
   try {
     const raw = sessionStorage.getItem(SESSION);
-    if (raw) return JSON.parse(raw) as SessionPayload;
+    if (raw) {
+      const parsed = JSON.parse(raw) as SessionPayload;
+      if (parsed.formatId === "B") return parsed;
+    }
   } catch {
     /* ignore */
   }
