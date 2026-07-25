@@ -5,7 +5,7 @@
     "dev": "concurrently -n web,api -c green,blue \"pnpm --filter @prompt-studio/web dev\" \"pnpm --filter @prompt-studio/server dev\"",
     "dev:web": "pnpm --filter @prompt-studio/web dev",
     "dev:server": "pnpm --filter @prompt-studio/server dev",
-    "build": "pnpm sync-templates && pnpm --filter @prompt-studio/core build && pnpm --filter @prompt-studio/web build",
+    "build": "pnpm sync-templates && node scripts/copy-snapshots-for-api.mjs && pnpm --filter @prompt-studio/core build && pnpm --filter @prompt-studio/web build",
     "sync-templates": "node scripts/sync-templates.mjs"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ const SNAPSHOT_FILES: Record<FormatId, string> = {
 function findSnapshot(formatId: FormatId): string | null {
   const file = SNAPSHOT_FILES[formatId];
   const rel = path.join("packages", "templates", "snapshots", file);
+  const apiRel = path.join("api", "lib", "template-snapshots", file);
   const roots = [
     process.cwd(),
     path.join(process.cwd(), "prompt-studio"),
@@ -18,10 +19,12 @@ function findSnapshot(formatId: FormatId): string | null {
   ];
   const seen = new Set<string>();
   for (const root of roots) {
-    const full = path.join(root, rel);
-    if (seen.has(full)) continue;
-    seen.add(full);
-    if (fs.existsSync(full)) return full;
+    for (const sub of [apiRel, rel]) {
+      const full = path.join(root, sub);
+      if (seen.has(full)) continue;
+      seen.add(full);
+      if (fs.existsSync(full)) return full;
+    }
   }
   return null;
 }
