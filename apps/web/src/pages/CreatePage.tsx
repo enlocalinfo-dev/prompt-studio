@@ -8,7 +8,11 @@ import {
   parseGensparkPrompt,
   referenceSummary,
 } from "@prompt-studio/core";
-import { EstimatePdfImportPanel } from "../components/EstimatePdfImportPanel";
+import {
+  EstimatePdfImportPanel,
+  type InlinePromptResult,
+  type PdfAppliedPayload,
+} from "../components/EstimatePdfImportPanel";
 import { FineTunePanel } from "../components/FineTunePanel";
 import { ReferenceMaterialsPanel, emptyReferences } from "../components/ReferenceMaterialsPanel";
 import { TrainingDeliveryBriefForm } from "../components/TrainingDeliveryBriefForm";
@@ -31,6 +35,7 @@ export function CreatePage() {
   const [tuning, setTuning] = useState<TuningB>(() => loadTuningB());
   const [loading, setLoading] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [inlinePrompt, setInlinePrompt] = useState<InlinePromptResult | null>(null);
 
   const appendSpeech = useCallback((chunk: string) => {
     setExtraNotes(chunk);
@@ -43,45 +48,118 @@ export function CreatePage() {
     [brief, tuning, extraNotes, estimateSlideDetail],
   );
 
-  async function handleGenerate() {
+  const runGenerate = useCallback(
+    async (input: {
+      brief: TrainingDeliveryBrief;
+      tuning: TuningB;
+      extraNotes: string;
+      estimateSlideDetail: string;
+      references: ReferenceBundle;
+      openResultPage?: boolean;
+    }): Promise<InlinePromptResult> => {
+      const transcript = buildTrainingBriefTranscript(
+        input.brief,
+        input.tuning,
+        input.extraNotes,
+        input.estimateSlideDetail,
+      );
+      const result = await postGenerate({
+        formatId: FORMAT_ID,
+        transcript,
+        tuning: input.tuning,
+        references: input.references,
+      });
+      const inline: InlinePromptResult = {
+        markdown: result.markdown,
+        gensparkText: result.gensparkText,
+        folderNameSuggestion: result.folderNameSuggestion,
+        usedLlm: result.usedLlm,
+        segments: parseGensparkPrompt(result.markdown),
+      };
+      const payload = {
+        formatId: FORMAT_ID,
+        transcript,
+        tuning: input.tuning,
+        references: input.references,
+        result: {
+          ...inline,
+          structured: result.structured,
+        },
+      };
+      saveSession(payload);
+      setInlinePrompt(inline);
+      if (input.openResultPage) {
+        nav("/result", { replace: true, state: { session: payload } });
+      }
+      return inline;
+    },
+    [nav],
+  );
+
+  const handlePdfApplied = useCallback((payload: PdfAppliedPayload) => {
+    setBrief(payload.brief);
+    saveTrainingBrief(payload.brief);
+    setTuning(payload.tuning);
+    saveTuningB(payload.tuning);
+    setEstimateSlideDetail(payload.slideDetail ?? "");
+    setPdfLoaded(true);
+    setReferences((prev) => ({
+      ...prev,
+      documents: [payload.document, ...prev.documents.filter((d) => d.name !== payload.document.name)].slice(0, 5),
+    }));
+    if (payload.notes?.trim()) {
+      setExtraNotes((prev) => (prev ? `${prev}\n${payload.notes}` : payload.notes!));
+    }
+  }, []);
+
+  const handleAutoGenerateFromPdf = useCallback(
+    async (payload: PdfAppliedPayload) => {
+      const mergedNotes = payload.notes?.trim() ? payload.notes : extraNotes;
+      const refs: ReferenceBundle = {
+        documents: [payload.document],
+        urls: references.urls,
+      };
+      return runGenerate({
+        brief: payload.brief,
+        tuning: payload.tuning,
+        extraNotes: mergedNotes,
+        estimateSlideDetail: payload.slideDetail ?? "",
+        references: refs,
+        openResultPage: false,
+      });
+    },
+    [extraNotes, references.urls, runGenerate],
+  );
+
+  async function handleRegenerate() {
     if (!pdfLoaded && references.documents.length === 0) {
       push("先に見積PDFを読み込んでください");
       return;
     }
     setLoading(true);
     try {
-      const result = await postGenerate({
-        formatId: FORMAT_ID,
-        transcript: effectiveTranscript,
+      await runGenerate({
+        brief,
         tuning,
+        extraNotes,
+        estimateSlideDetail,
         references,
+        openResultPage: false,
       });
-      const payload = {
-        formatId: FORMAT_ID,
-        transcript: effectiveTranscript,
-        tuning,
-        references,
-        result: {
-          markdown: result.markdown,
-          gensparkText: result.gensparkText,
-          folderNameSuggestion: result.folderNameSuggestion,
-          usedLlm: result.usedLlm,
-          structured: result.structured,
-          segments: parseGensparkPrompt(result.markdown),
-        },
-      };
-      saveSession(payload);
-      push(
-        result.generationMode === "llm-full" || result.generationMode === "llm-slides"
-          ? "見積を反映したB標準プロンプトを生成しました"
-          : "テンプレ合成で生成しました",
-      );
-      nav("/result", { replace: true, state: { session: payload } });
+      push("プロンプトを再生成しました（Step 1 の表示も更新されています）");
     } catch (e) {
       push(e instanceof Error ? e.message : "生成に失敗しました");
     } finally {
       setLoading(false);
     }
+  }
+
+  function openFullResultPage() {
+    if (!inlinePrompt) {
+      push("先にPDFから生成するか、再生成してください");
+      return;
+    }
+    nav("/result");
   }
 
   return (
@@ -93,24 +171,14 @@ export function CreatePage() {
       <EstimatePdfImportPanel
         brief={brief}
         tuning={tuning}
-        onApplied={({ brief: b, tuning: t, document, slideDetail, notes }) => {
-          setBrief(b);
-          saveTrainingBrief(b);
-          setTuning(t);
-          saveTuningB(t);
-          setEstimateSlideDetail(slideDetail ?? "");
-          setPdfLoaded(true);
-          setReferences((prev) => ({
-            ...prev,
-            documents: [document, ...prev.documents.filter((d) => d.name !== document.name)].slice(0, 5),
-          }));
-          if (notes?.trim()) setExtraNotes((prev) => (prev ? `${prev}\n${notes}` : notes));
-        }}
+        promptResult={inlinePrompt}
+        onApplied={handlePdfApplied}
+        onAutoGenerate={handleAutoGenerateFromPdf}
       />
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-en-accent">Step 2 — 確認・生成</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-en-accent">Step 2 — 骨子の確認・再生成</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">{DELIVERY_B_FORMAT.label}</h1>
         </div>
       </div>
@@ -132,9 +200,14 @@ export function CreatePage() {
             extraNotes={extraNotes}
             onExtraNotesChange={setExtraNotes}
           />
-          <Button className="mt-6 w-full !py-3.5" disabled={loading} onClick={handleGenerate}>
-            {loading ? "生成中…" : "Genspark プロンプトを生成（8枚）"}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <Button className="flex-1 !py-3.5" disabled={loading} onClick={handleRegenerate}>
+              {loading ? "再生成中…" : "骨子を直して再生成"}
+            </Button>
+            <Button variant="secondary" className="flex-1 !py-3.5" disabled={!inlinePrompt} onClick={openFullResultPage}>
+              結果を全画面で開く
+            </Button>
+          </div>
         </div>
         <FineTunePanel tuning={tuning} onChange={setTuning} />
       </div>

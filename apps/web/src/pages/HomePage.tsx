@@ -27,7 +27,8 @@ export function HomePage() {
         </h1>
         <p className="mt-5 max-w-2xl text-sm leading-relaxed text-en-muted md:text-[15px]">
           {DELIVERY_B_FORMAT.description}
-          まず見積PDFを読み込み、骨子を自動入力したうえで B 標準テンプレ（全{DELIVERY_B_FORMAT.slideCount}枚）の{" "}
+          まず見積PDFを選ぶと、同じ画面内で骨子入力と Genspark プロンプト生成まで進みます。B 標準テンプレ（全
+          {DELIVERY_B_FORMAT.slideCount}枚）の{" "}
           <code className="rounded bg-white/5 px-1.5 py-0.5 text-en-text">genspark_prompt.md</code>{" "}
           を生成します。一般提案（Format A）はこのアプリでは扱いません（Cursor で作成）。
         </p>
