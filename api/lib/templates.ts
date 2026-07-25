@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { FormatId } from "@prompt-studio/core";
+import { SNAPSHOTS } from "./templates-bundled.js";
 
 const SNAPSHOT_FILES: Record<FormatId, string> = {
   A: "format-a-master.md",
@@ -53,6 +54,8 @@ export function loadMasterTemplate(formatId: FormatId, devLive: boolean): string
   }
   const snap = findSnapshot(formatId);
   if (snap) return fs.readFileSync(snap, "utf8");
+  const bundled = SNAPSHOTS[formatId];
+  if (bundled?.length > 100) return bundled;
   return `# ${formatId} テンプレ未同期\n\npnpm sync-templates を実行してください。\n`;
 }
 

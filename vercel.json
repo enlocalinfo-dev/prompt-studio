@@ -1,6 +1,6 @@
 {
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm sync-templates && node scripts/copy-snapshots-for-api.mjs && pnpm --filter @prompt-studio/core build && pnpm --filter @prompt-studio/web exec vite build",
+  "buildCommand": "pnpm sync-templates && node scripts/copy-snapshots-for-api.mjs && node scripts/emit-templates-bundled.mjs && pnpm --filter @prompt-studio/core build && pnpm --filter @prompt-studio/web exec vite build",
   "outputDirectory": "apps/web/dist",
   "framework": null,
   "rewrites": [
