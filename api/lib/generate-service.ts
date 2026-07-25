@@ -4,21 +4,9 @@ import { loadMasterTemplate } from "./templates.js";
 import { buildReferenceContext, type ReferenceBundle } from "./reference-context.js";
 import { loadPromptStudioCore } from "./load-core.js";
 import { mergeSlideBriefs } from "./markdown-merge.js";
+import type { TuningB } from "@prompt-studio/core";
 
-type FormatId = "A" | "B";
-
-interface Tuning {
-  clientName: string;
-  documentDate: string;
-  proposerName: string;
-  projectTitle: string;
-  slideCount?: number;
-  netCostSlide?: boolean;
-  illustrationEmphasis?: boolean;
-  density15x?: boolean;
-  sectionDividers?: boolean;
-  audience?: string;
-}
+type FormatId = "B";
 
 function getAnthropic(): Anthropic | null {
   if (!process.env.ANTHROPIC_API_KEY) return null;
@@ -30,7 +18,7 @@ function templatesLive(): boolean {
   return process.env.TEMPLATES_LIVE !== "false";
 }
 
-function applyTuningToBody(body: string, tuning: Tuning): string {
+function applyTuningToBody(body: string, tuning: TuningB): string {
   let out = body;
   out = out.replace(/\*\*2026年7月24日\*\*/g, `**${tuning.documentDate}**`);
   out = out.replace(/\*\*2026年7月13日\*\*/g, `**${tuning.documentDate}**`);
@@ -46,7 +34,7 @@ function applyTuningToBody(body: string, tuning: Tuning): string {
 export async function runGenerate(body: {
   formatId: FormatId;
   transcript: string;
-  tuning: Tuning;
+  tuning: TuningB;
   references?: ReferenceBundle;
 }) {
   const core = await loadPromptStudioCore();
@@ -101,7 +89,7 @@ export async function runGenerate(body: {
       markdown = core.composeMarkdown(
         formatId,
         structured,
-        tuning as import("@prompt-studio/core").Tuning,
+        tuning,
         merged,
         references,
       );
@@ -117,7 +105,7 @@ export async function runGenerate(body: {
       );
     }
     markdown = core.generateMock(
-      { formatId, transcript: transcript ?? "", tuning: tuning as import("@prompt-studio/core").Tuning, references },
+      { formatId, transcript: transcript ?? "", tuning, references },
       master,
     ).markdown;
     generationMode = "mock";

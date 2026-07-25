@@ -4,23 +4,16 @@
   "outputDirectory": "apps/web/dist",
   "framework": null,
   "rewrites": [
-    { "source": "/api/fetch-url", "destination": "/api/fetch-url" },
-    { "source": "/api/generate", "destination": "/api/generate" },
-    { "source": "/api/health", "destination": "/api/health" },
-    { "source": "/api/templates/:formatId", "destination": "/api/templates/:formatId" },
+    { "source": "/api/health", "destination": "/api?__path=health" },
+    { "source": "/api/fetch-url", "destination": "/api?__path=fetch-url" },
+    { "source": "/api/generate", "destination": "/api?__path=generate" },
+    { "source": "/api/templates/:formatId", "destination": "/api?__path=templates/:formatId" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/fetch-url.ts": {
-      "maxDuration": 30,
-      "includeFiles": "api/lib/**"
-    },
-    "api/generate.ts": {
+    "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": "packages/core/dist/serverless.cjs,api/lib/template-snapshots/**,api/lib/**"
-    },
-    "api/templates/[formatId].ts": {
-      "includeFiles": "packages/templates/snapshots/**,api/lib/**"
+      "includeFiles": "packages/core/dist/serverless.cjs,api/lib/**"
     }
   }
 }
