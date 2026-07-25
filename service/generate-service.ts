@@ -1,3 +1,4 @@
+import { isBlobUploadConfigured } from "./blob-upload-route.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { composeSlideBriefsWithLlm, composeWithLlm, extractStructured } from "./llm.js";
 import { loadMasterTemplate } from "./templates.js";
@@ -140,6 +141,7 @@ export function runHealth() {
   return {
     ok: true,
     llm: Boolean(process.env.ANTHROPIC_API_KEY),
+    blobUpload: isBlobUploadConfigured(),
     templatesLive: templatesLive(),
   };
 }

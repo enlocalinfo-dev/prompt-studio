@@ -63,23 +63,39 @@ app.post("/api/fetch-url", async (req, res) => {
   }
 });
 
+app.post("/api/blob-upload", async (req, res) => {
+  try {
+    const { runBlobUploadRoute } = await import("../../service/blob-upload-route.js");
+    const response = await runBlobUploadRoute(req as import("@vercel/node").VercelRequest);
+    const data = await response.json().catch(() => ({}));
+    res.status(response.status).json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "blob-upload failed" });
+  }
+});
+
 app.post("/api/expand-brief", async (req, res) => {
   try {
-    const { fileName, extractedText, pdfBase64 } = req.body as {
+    const { fileName, extractedText, pdfBase64, pdfBlobUrl } = req.body as {
       fileName?: string;
       extractedText?: string;
       pdfBase64?: string;
+      pdfBlobUrl?: string;
     };
     if (!fileName) {
       res.status(400).json({ error: "fileName required" });
       return;
     }
+    const { sanitizeExpandBriefBody } = await import("../../service/pdf-upload-limits.js");
+    const safe = sanitizeExpandBriefBody({ fileName, extractedText, pdfBase64, pdfBlobUrl });
     const { expandBriefFromEstimatePdf } = await import("../../service/expand-brief-from-pdf.js");
-    const result = await expandBriefFromEstimatePdf({ fileName, extractedText, pdfBase64 });
+    const result = await expandBriefFromEstimatePdf(safe);
     res.json(result);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "expand-brief failed" });
+    const message = e instanceof Error ? e.message : "expand-brief failed";
+    res.status(500).json({ error: message });
   }
 });
 

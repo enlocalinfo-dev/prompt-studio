@@ -42,15 +42,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (head === "blob-upload") {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "method not allowed" });
+        return;
+      }
+      const { runBlobUploadRoute } = await import("../service/blob-upload-route.js");
+      const response = await runBlobUploadRoute(req);
+      const data = await response.json().catch(() => ({}));
+      res.status(response.status).json(data);
+      return;
+    }
+
     if (head === "expand-brief") {
       if (req.method !== "POST") {
         res.status(405).json({ error: "method not allowed" });
         return;
       }
-      const { fileName, extractedText, pdfBase64 } = req.body as {
+      const { fileName, extractedText, pdfBase64, pdfBlobUrl } = req.body as {
         fileName?: string;
         extractedText?: string;
         pdfBase64?: string;
+        pdfBlobUrl?: string;
       };
       if (!fileName) {
         res.status(400).json({ error: "fileName required" });
@@ -61,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileName,
         extractedText,
         pdfBase64,
+        pdfBlobUrl,
       });
       const { expandBriefFromEstimatePdf } = await import("../service/expand-brief-from-pdf.js");
       const result = await expandBriefFromEstimatePdf(safe);

@@ -32,6 +32,7 @@ export async function postExpandBriefFromPdf(body: {
   fileName: string;
   extractedText?: string;
   pdfBase64?: string;
+  pdfBlobUrl?: string;
 }): Promise<{
   expanded: import("@prompt-studio/core").ExpandedFromEstimate;
   usedLlm: boolean;

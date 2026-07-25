@@ -12,23 +12,34 @@ export function shouldAttachPdfBinary(extractedText: string | undefined): boolea
   return (extractedText?.trim().length ?? 0) < MIN_EXTRACTED_TEXT_CHARS;
 }
 
-export function sanitizeExpandBriefBody(body: {
+export type ExpandBriefPdfPayload = {
   fileName: string;
   extractedText?: string;
   pdfBase64?: string;
-}): { fileName: string; extractedText?: string; pdfBase64?: string } {
+  pdfBlobUrl?: string;
+};
+
+export function sanitizeExpandBriefBody(body: ExpandBriefPdfPayload): ExpandBriefPdfPayload {
   const extractedText = body.extractedText?.trim().slice(0, MAX_EXTRACTED_TEXT_CHARS);
   let pdfBase64 = body.pdfBase64;
+  let pdfBlobUrl = body.pdfBlobUrl?.trim();
 
   if (!shouldAttachPdfBinary(extractedText)) {
     pdfBase64 = undefined;
-  } else if (pdfBase64 && pdfBase64.length > 3_600_000) {
-    pdfBase64 = undefined;
+    pdfBlobUrl = undefined;
+  } else {
+    if (pdfBlobUrl && pdfBase64) {
+      pdfBase64 = undefined;
+    }
+    if (pdfBase64 && pdfBase64.length > 3_600_000) {
+      pdfBase64 = undefined;
+    }
   }
 
   return {
     fileName: body.fileName,
     extractedText: extractedText || undefined,
     pdfBase64,
+    pdfBlobUrl: pdfBlobUrl || undefined,
   };
 }

@@ -3,9 +3,11 @@ import {
   heuristicParseEstimateText,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
+import { fetchPdfBase64FromBlobUrl } from "./pdf-blob-fetch.js";
 import {
   sanitizeExpandBriefBody,
   shouldAttachPdfBinary,
+  type ExpandBriefPdfPayload,
 } from "./pdf-upload-limits.js";
 
 import { ANTHROPIC_MODEL_CANDIDATES } from "./anthropic-models.js";
@@ -52,13 +54,16 @@ function parseJson(text: string): ExpandedFromEstimate {
   };
 }
 
-export async function expandBriefFromEstimatePdf(body: {
-  fileName: string;
-  extractedText?: string;
-  pdfBase64?: string;
-}): Promise<{ expanded: ExpandedFromEstimate; usedLlm: boolean }> {
+export async function expandBriefFromEstimatePdf(
+  body: ExpandBriefPdfPayload,
+): Promise<{ expanded: ExpandedFromEstimate; usedLlm: boolean }> {
   const sanitized = sanitizeExpandBriefBody(body);
-  const { fileName, extractedText, pdfBase64 } = sanitized;
+  const { fileName, extractedText, pdfBlobUrl } = sanitized;
+  let pdfBase64 = sanitized.pdfBase64;
+
+  if (shouldAttachPdfBinary(extractedText) && !pdfBase64 && pdfBlobUrl) {
+    pdfBase64 = await fetchPdfBase64FromBlobUrl(pdfBlobUrl);
+  }
   const heuristic = extractedText?.trim()
     ? heuristicParseEstimateText(extractedText)
     : { tuning: {}, brief: {}, trainingDetailForSlides: "" };
