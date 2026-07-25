@@ -98,17 +98,26 @@ export async function runGenerate(body: {
   }
 
   if (!markdown.trim()) {
-    if (anthropic) {
+    const fallbackBody = applyTuningToBody(
+      core.composeMarkdown(formatId, structured, tuning, master, references),
+      tuning,
+    );
+    if (fallbackBody.trim().length > 400) {
+      markdown = fallbackBody;
+      generationMode = "mock";
+      composeErrors.push("llm-fallback: template compose with extracted fields");
+    } else if (anthropic) {
       const hint = composeErrors.length ? composeErrors.join("; ") : "unknown";
       throw new Error(
-        `提案資料へのプロンプト化に失敗しました（${hint}）。入力を短く区切るか、しばらくして再試行してください。`,
+        `プロンプト生成に失敗しました（${hint}）。しばらくして再試行するか、骨子を短くしてください。`,
       );
+    } else {
+      markdown = core.generateMock(
+        { formatId, transcript: transcript ?? "", tuning, references },
+        master,
+      ).markdown;
+      generationMode = "mock";
     }
-    markdown = core.generateMock(
-      { formatId, transcript: transcript ?? "", tuning, references },
-      master,
-    ).markdown;
-    generationMode = "mock";
   }
 
   const gensparkText = core.extractGensparkText(markdown);

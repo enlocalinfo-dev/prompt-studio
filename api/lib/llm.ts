@@ -2,6 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Extracted, FormatId, Tuning } from "@prompt-studio/core";
 import { loadPromptStudioCore } from "./load-core.js";
 import {
+  ANTHROPIC_MODEL_CANDIDATES,
+} from "./anthropic-models.js";
+import {
   AUTHORING_SYSTEM,
   EXTRACT_SYSTEM,
   SLIDE_BRIEFS_SYSTEM,
@@ -12,9 +15,6 @@ import {
   parseJsonFromLlm,
   slideHeadingsOutline,
 } from "./markdown-merge.js";
-
-const MODEL_PRIMARY = "claude-sonnet-4-20250514";
-const MODEL_FALLBACK = "claude-3-5-sonnet-20241022";
 
 function schemaHint(formatId: FormatId): string {
   if (formatId === "B") {
@@ -47,9 +47,8 @@ async function createText(
   user: string,
   maxTokens: number,
 ): Promise<string> {
-  const models = [MODEL_PRIMARY, MODEL_FALLBACK];
-  let lastErr: Error | null = null;
-  for (const model of models) {
+  const errors: string[] = [];
+  for (const model of ANTHROPIC_MODEL_CANDIDATES) {
     try {
       const msg = await client.messages.create({
         model,
@@ -63,10 +62,11 @@ async function createText(
         .map((b) => b.text)
         .join("");
     } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
+      const err = e instanceof Error ? e.message : String(e);
+      errors.push(`${model}: ${err.slice(0, 160)}`);
     }
   }
-  throw lastErr ?? new Error("LLM request failed");
+  throw new Error(errors.join(" | ") || "LLM request failed");
 }
 
 export type ExtractResult = { data: Extracted; usedLlm: boolean; error?: string };

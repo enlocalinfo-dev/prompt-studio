@@ -4,7 +4,7 @@ import {
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
 
-const MODEL = "claude-sonnet-4-20250514";
+import { ANTHROPIC_MODEL_CANDIDATES } from "./anthropic-models.js";
 
 const JSON_SCHEMA = `{
   "clientName": "提案先（株式会社〇〇様）",
@@ -88,21 +88,25 @@ ${JSON_SCHEMA}`;
 
   content.push({ type: "text", text: userText });
 
-  try {
-    const msg = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      temperature: 0.1,
-      system,
-      messages: [{ role: "user", content }],
-    });
-    const text = msg.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-    const expanded = parseJson(text);
-    return { expanded, usedLlm: true };
-  } catch {
-    return { expanded: heuristic, usedLlm: false };
+  for (const model of ANTHROPIC_MODEL_CANDIDATES) {
+    try {
+      const msg = await client.messages.create({
+        model,
+        max_tokens: 4096,
+        temperature: 0.1,
+        system,
+        messages: [{ role: "user", content }],
+      });
+      const text = msg.content
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      const expanded = parseJson(text);
+      return { expanded, usedLlm: true };
+    } catch {
+      /* try next model */
+    }
   }
+
+  return { expanded: heuristic, usedLlm: false };
 }

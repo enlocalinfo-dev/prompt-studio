@@ -63,7 +63,10 @@ export async function postGenerate(body: {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = typeof err.detail === "string" ? err.detail : "";
-    throw new Error(detail ? `${err.error ?? "error"}: ${detail}` : (err.error ?? `HTTP ${res.status}`));
+    if (detail) {
+      throw new Error(detail.includes("プロンプト生成") ? detail : `プロンプト生成に失敗しました: ${detail}`);
+    }
+    throw new Error(err.error === "generate failed" ? "プロンプト生成に失敗しました。しばらくして再試行してください。" : (err.error ?? `HTTP ${res.status}`));
   }
   return res.json();
 }
