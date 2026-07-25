@@ -1,25 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Extracted, FormatId, Tuning } from "@prompt-studio/core";
 import { loadPromptStudioCore } from "./load-core.js";
+import {
+  AUTHORING_SYSTEM,
+  EXTRACT_SYSTEM,
+  SLIDE_BRIEFS_SYSTEM,
+} from "./authoring-prompt.js";
+import {
+  extractSlideBriefSection,
+  mergeSlideBriefs,
+  parseJsonFromLlm,
+  slideHeadingsOutline,
+} from "./markdown-merge.js";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL_PRIMARY = "claude-sonnet-4-20250514";
+const MODEL_FALLBACK = "claude-3-5-sonnet-20241022";
 
 function schemaHint(formatId: FormatId): string {
   if (formatId === "B") {
-    return `JSON only:
-{
+    return `{
   "formatId": "B",
   "trainingName": string,
   "targetParticipants": string,
   "trainingActivities": string,
   "beforeAfterSteps": string,
-  "scheduleNotes": string (must mention application deadline and start month if known),
+  "scheduleNotes": string,
   "roiNotes": string,
   "netCostNotes": string
 }`;
   }
-  return `JSON only:
-{
+  return `{
   "formatId": "A",
   "targetAudience": string,
   "oneLineMessage": string,
@@ -27,46 +37,119 @@ function schemaHint(formatId: FormatId): string {
   "toneNotes": string,
   "slideOutline": string,
   "keyFacts": string[],
-  "openItems": string[] (include "要協議" for unknown percentages)
+  "openItems": string[]
 }`;
 }
+
+async function createText(
+  client: Anthropic,
+  system: string,
+  user: string,
+  maxTokens: number,
+): Promise<string> {
+  const models = [MODEL_PRIMARY, MODEL_FALLBACK];
+  let lastErr: Error | null = null;
+  for (const model of models) {
+    try {
+      const msg = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        temperature: 0.2,
+        system,
+        messages: [{ role: "user", content: user }],
+      });
+      return msg.content
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+    }
+  }
+  throw lastErr ?? new Error("LLM request failed");
+}
+
+export type ExtractResult = { data: Extracted; usedLlm: boolean; error?: string };
 
 export async function extractStructured(
   client: Anthropic | null,
   formatId: FormatId,
   transcript: string,
   referenceContext = "",
-): Promise<Extracted> {
+): Promise<ExtractResult> {
   const { mockExtract } = await loadPromptStudioCore();
   if (!client || !process.env.ANTHROPIC_API_KEY) {
-    return mockExtract(formatId, transcript);
+    return { data: mockExtract(formatId, transcript), usedLlm: false };
   }
 
-  const system = `You extract structured briefing fields for Genspark prompt authoring.
-Format ${formatId}. Japanese business tone. Do not invent revenue share percentages.
-Return valid JSON matching the schema. No markdown fences.`;
-
   const refBlock = referenceContext
-    ? `\n\nReference materials (PDF/URL — treat as factual source; do not invent beyond this):\n${referenceContext.slice(0, 40000)}`
+    ? `\n\nReference materials (prioritize facts; do not invent beyond this):\n${referenceContext.slice(0, 35000)}`
     : "";
 
-  const user = `Transcript / user request:\n${transcript || "（未入力）"}${refBlock}\n\nSchema:\n${schemaHint(formatId)}`;
+  const user = `formatId: ${formatId}
+
+Meeting minutes / user input (summarize into schema; do NOT return the full text as a single field value):
+---
+${transcript || "（未入力）"}
+---${refBlock}
+
+Schema:
+${schemaHint(formatId)}`;
 
   try {
-    const msg = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system,
-      messages: [{ role: "user", content: user }],
-    });
-    const text = msg.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-    const json = JSON.parse(text.replace(/^```json?\s*|\s*```$/g, "").trim());
-    return json as Extracted;
-  } catch {
-    return mockExtract(formatId, transcript);
+    const text = await createText(client, EXTRACT_SYSTEM, user, 4096);
+    const json = parseJsonFromLlm(text);
+    return { data: json as Extracted, usedLlm: true };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    return { data: mockExtract(formatId, transcript), usedLlm: false, error: err };
+  }
+}
+
+export async function composeSlideBriefsWithLlm(
+  client: Anthropic | null,
+  formatId: FormatId,
+  extracted: Extracted,
+  tuning: Tuning,
+  masterTemplate: string,
+  transcript: string,
+  referenceContext = "",
+): Promise<{ briefs: string; usedLlm: boolean; error?: string }> {
+  if (!client || !process.env.ANTHROPIC_API_KEY) {
+    return { briefs: "", usedLlm: false };
+  }
+
+  const outline = slideHeadingsOutline(masterTemplate);
+  const exampleSection = extractSlideBriefSection(masterTemplate).slice(0, 8000);
+
+  const user = `formatId: ${formatId}
+tuning: ${JSON.stringify(tuning, null, 2)}
+structured_extract: ${JSON.stringify(extracted, null, 2)}
+
+Original user / meeting input (facts only — do not paste verbatim into slides):
+${transcript.slice(0, 12000)}
+
+${referenceContext ? `References:\n${referenceContext.slice(0, 20000)}\n` : ""}
+
+Slide IDs to keep (same ■ labels and order):
+${outline}
+
+Example section format (structure reference only — replace ALL content for this case):
+---
+${exampleSection}
+---
+
+Output ONLY the ■ slide brief blocks for this case (no section header line).`;
+
+  try {
+    const briefs = await createText(client, SLIDE_BRIEFS_SYSTEM, user, 12000);
+    if (!briefs.includes("■")) {
+      throw new Error("Slide briefs missing ■ markers");
+    }
+    return { briefs: briefs.trim(), usedLlm: true };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    return { briefs: "", usedLlm: false, error: err };
   }
 }
 
@@ -76,42 +159,35 @@ export async function composeWithLlm(
   extracted: Extracted,
   tuning: Tuning,
   masterTemplate: string,
+  transcript: string,
   referenceContext = "",
-): Promise<string> {
+): Promise<{ markdown: string; usedLlm: boolean; error?: string }> {
   if (!client || !process.env.ANTHROPIC_API_KEY) {
-    return "";
+    return { markdown: "", usedLlm: false };
   }
-
-  const system = `You are an expert at writing genspark_prompt.md for EN Logical.
-Merge structured user data into the master template. Keep all mandatory rule blocks.
-Do not use emoji. Do not fabricate revenue percentages.
-Output complete markdown including ## Gensparkへの入力 with a \`\`\`text block.`;
-
-  const refBlock = referenceContext
-    ? `\nreference_materials (PDF/URL excerpts — prioritize over guesswork):\n${referenceContext.slice(0, 50000)}\n`
-    : "";
 
   const user = `formatId: ${formatId}
 tuning: ${JSON.stringify(tuning, null, 2)}
-extracted: ${JSON.stringify(extracted, null, 2)}
-${refBlock}
-Master template (adapt dates, client name, and slide briefs; keep locks):
+structured_extract: ${JSON.stringify(extracted, null, 2)}
+
+User / meeting input:
+${transcript.slice(0, 14000)}
+
+${referenceContext ? `References:\n${referenceContext.slice(0, 25000)}\n` : ""}
+
+Master template — adapt ALL case-specific text (■ slides, 案件要約, client, dates). Keep locks and YAML:
 ---
-${masterTemplate.slice(0, 120000)}
+${masterTemplate.slice(0, 100000)}
 ---`;
 
   try {
-    const msg = await client.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      system,
-      messages: [{ role: "user", content: user }],
-    });
-    return msg.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-  } catch {
-    return "";
+    const md = await createText(client, AUTHORING_SYSTEM, user, 16000);
+    if (md.trim().length < 400) {
+      throw new Error("Full compose output too short");
+    }
+    return { markdown: md, usedLlm: true };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    return { markdown: "", usedLlm: false, error: err };
   }
 }

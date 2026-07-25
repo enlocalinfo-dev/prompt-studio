@@ -84,7 +84,15 @@ export function CreatePage() {
         },
       };
       saveSession(payload);
-      push(result.usedLlm ? "Claude で生成しました" : "テンプレ合成で生成しました");
+      push(
+        result.generationMode === "llm-full"
+          ? "議事録を反映したプロンプトを生成しました"
+          : result.generationMode === "llm-slides"
+            ? "スライド固稿を議事録から生成しました"
+            : result.usedLlm
+              ? "Claude で生成しました"
+              : "テンプレ合成で生成しました",
+      );
       nav("/result", { replace: true, state: { session: payload } });
     } catch (e) {
       push(e instanceof Error ? e.message : "生成に失敗しました");

@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { composeWithLlm, extractStructured } from "./llm.js";
+import { composeSlideBriefsWithLlm, composeWithLlm, extractStructured } from "./llm.js";
 import { loadMasterTemplate } from "./templates.js";
 import { buildReferenceContext, type ReferenceBundle } from "./reference-context.js";
 import { loadPromptStudioCore } from "./load-core.js";
+import { mergeSlideBriefs } from "./markdown-merge.js";
 
 type FormatId = "A" | "B";
 
@@ -29,6 +30,19 @@ function templatesLive(): boolean {
   return process.env.TEMPLATES_LIVE !== "false";
 }
 
+function applyTuningToBody(body: string, tuning: Tuning): string {
+  let out = body;
+  out = out.replace(/\*\*2026年7月24日\*\*/g, `**${tuning.documentDate}**`);
+  out = out.replace(/\*\*2026年7月13日\*\*/g, `**${tuning.documentDate}**`);
+  out = out.replace(/2026年7月24日/g, tuning.documentDate);
+  out = out.replace(/2026年7月13日/g, tuning.documentDate);
+  out = out.replace(/株式会社ネクストリンク商事様/g, tuning.clientName);
+  if (tuning.projectTitle) {
+    out = out.replace(/人事AX研修 共同開発のご提案/g, tuning.projectTitle);
+  }
+  return out;
+}
+
 export async function runGenerate(body: {
   formatId: FormatId;
   transcript: string;
@@ -42,30 +56,71 @@ export async function runGenerate(body: {
   const anthropic = getAnthropic();
   const master = loadMasterTemplate(formatId, devLive);
 
-  const structured = await extractStructured(
+  const extractResult = await extractStructured(
     anthropic,
     formatId,
     transcript ?? "",
     referenceContext,
   );
+  const structured = extractResult.data;
 
-  const llmMd = await composeWithLlm(
+  let generationMode: "llm-full" | "llm-slides" | "mock" = "mock";
+  let composeErrors: string[] = [];
+  if (extractResult.error) composeErrors.push(`extract: ${extractResult.error}`);
+
+  let markdown = "";
+
+  const fullCompose = await composeWithLlm(
     anthropic,
     formatId,
     structured,
     tuning,
     master,
+    transcript ?? "",
     referenceContext,
   );
+  if (fullCompose.error) composeErrors.push(`full: ${fullCompose.error}`);
 
-  let markdown: string;
-  if (llmMd.trim().length > 200) {
-    markdown = llmMd;
-  } else {
+  if (fullCompose.markdown.trim().length > 400) {
+    markdown = fullCompose.markdown;
+    generationMode = "llm-full";
+  } else if (anthropic) {
+    const slideCompose = await composeSlideBriefsWithLlm(
+      anthropic,
+      formatId,
+      structured,
+      tuning,
+      master,
+      transcript ?? "",
+      referenceContext,
+    );
+    if (slideCompose.error) composeErrors.push(`slides: ${slideCompose.error}`);
+
+    if (slideCompose.briefs.length > 200) {
+      const merged = applyTuningToBody(mergeSlideBriefs(master, slideCompose.briefs), tuning);
+      markdown = core.composeMarkdown(
+        formatId,
+        structured,
+        tuning as import("@prompt-studio/core").Tuning,
+        merged,
+        references,
+      );
+      generationMode = "llm-slides";
+    }
+  }
+
+  if (!markdown.trim()) {
+    if (anthropic) {
+      const hint = composeErrors.length ? composeErrors.join("; ") : "unknown";
+      throw new Error(
+        `提案資料へのプロンプト化に失敗しました（${hint}）。入力を短く区切るか、しばらくして再試行してください。`,
+      );
+    }
     markdown = core.generateMock(
-      { formatId, transcript: transcript ?? "", tuning, references },
+      { formatId, transcript: transcript ?? "", tuning: tuning as import("@prompt-studio/core").Tuning, references },
       master,
     ).markdown;
+    generationMode = "mock";
   }
 
   const gensparkText = core.extractGensparkText(markdown);
@@ -78,7 +133,9 @@ export async function runGenerate(body: {
     markdown,
     gensparkText,
     folderNameSuggestion: core.folderNameFromDate(tuning.documentDate, title),
-    usedLlm: Boolean(anthropic),
+    usedLlm: generationMode !== "mock",
+    generationMode,
+    composeErrors: composeErrors.length ? composeErrors : undefined,
     templatesLive: devLive,
   };
 }

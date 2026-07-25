@@ -7,6 +7,8 @@ export interface GenerateResponse {
   gensparkText: string;
   folderNameSuggestion: string;
   usedLlm: boolean;
+  generationMode?: "llm-full" | "llm-slides" | "mock";
+  composeErrors?: string[];
 }
 
 export async function fetchUrlContent(url: string): Promise<{

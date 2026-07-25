@@ -87,14 +87,24 @@ function folderNameFromDate(dateJa: string, title: string): string {
 }
 
 function mockExtractA(transcript: string): ExtractedA {
+  const snippet = transcript.trim().slice(0, 280);
+  const lines = transcript
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 5);
   return {
     formatId: "A",
-    targetAudience: transcript.slice(0, 120) || "経営層・意思決定者",
-    oneLineMessage: "協業・提案の全体像を整理し、社内合意を得る",
+    targetAudience: lines[0]?.slice(0, 120) || "経営層・意思決定者",
+    oneLineMessage: snippet
+      ? "議事録内容を整理し、提案の全体像と次ステップの合意を得る"
+      : "協業・提案の全体像を整理し、社内合意を得る",
     readAction: "座組・次ステップの合意",
     toneNotes: "ビジネスライク、口語・煽り禁止",
     slideOutline: "表紙→サマリー→背景→提案本体→協業/収益→次アクション",
-    keyFacts: transcript ? [transcript] : ["（音声またはテキストで要望を入力してください）"],
+    keyFacts: lines.length
+      ? lines.map((l) => l.slice(0, 200))
+      : ["（音声またはテキストで要望を入力してください）"],
     openItems: ["収益配分・未確定数値は要協議（捏造禁止）"],
   };
 }
@@ -107,7 +117,7 @@ function mockExtractB(transcript: string): ExtractedB {
     trainingActivities: "全4回・伴走型（準備・提案・振り返り・運用ガイド）",
     beforeAfterSteps: "5ステップの Before/After（AI活用後を明示）",
     scheduleNotes: transcript.includes("月")
-      ? transcript
+      ? transcript.split("\n").find((l) => l.includes("月"))?.slice(0, 200) ?? "社内決裁→申請締切→開始月（要日程調整）"
       : "社内決裁→申請締切→開始月（要日程調整）",
     roiNotes: "時間削減試算（前提明示・試算例）",
     netCostNotes: "助成差引後の実質負担（別スライド）",
