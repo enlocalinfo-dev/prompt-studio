@@ -1,5 +1,5 @@
 import type { FormatId, ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
-import { defaultTuning, defaultTrainingBrief } from "@prompt-studio/core";
+import { defaultTuning, defaultTrainingBrief, normalizeTrainingBrief } from "@prompt-studio/core";
 
 const KEY_B = "prompt-studio-tuning-B";
 
@@ -71,7 +71,7 @@ const BRIEF_KEY = "prompt-studio-brief-B";
 export function loadTrainingBrief(): TrainingDeliveryBrief {
   try {
     const raw = localStorage.getItem(BRIEF_KEY);
-    if (raw) return JSON.parse(raw) as TrainingDeliveryBrief;
+    if (raw) return normalizeTrainingBrief(JSON.parse(raw));
   } catch {
     /* ignore */
   }

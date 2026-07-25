@@ -6,7 +6,7 @@ export const DELIVERY_B_FORMAT = {
   slideCount: 8,
   slideCountHint: "8枚固定",
   description:
-    "導入企業向けサマリー。8枚固定・①〜⑤＋実質負担（別スライド）＋次の一手。サマリー1枚再配置は作らない。",
+    "経営者の社内決裁向けサマリー。8枚固定・①〜⑤＋実質負担（別スライド）＋次の一手。",
 };
 
 export interface DeliverySlideRole {
@@ -80,68 +80,33 @@ export interface DeliveryInputSection {
 export const DELIVERY_B_INPUT_SECTIONS: DeliveryInputSection[] = [
   {
     id: "meta",
-    title: "案件メタ（ファインチューニング）",
-    mapsToSlide: "1・表紙／表記ロック",
-    fields: ["提案先", "資料版日", "研修名", "提案元（ENロジカル）"],
-    hint: "表紙・YAML client_template / training_name に反映",
+    title: "案件メタ",
+    mapsToSlide: "1・表紙",
+    fields: ["提案先", "資料版日", "研修名", "提案元"],
+    hint: "右サイドバーで設定",
   },
   {
-    id: "readers",
-    title: "想定読者",
-    mapsToSlide: "全体トーン",
-    fields: ["読み手（人事・事業部長・経営層など）"],
-    hint: "資料の前提として固定",
-  },
-  {
-    id: "target",
-    title: "① 対象者",
-    mapsToSlide: "スライド2",
-    fields: ["主対象", "副対象", "前提・スキル", "対象外"],
-    hint: "人数・事業部名は案件ごとに差し替え",
-  },
-  {
-    id: "training",
-    title: "② 研修内容",
-    mapsToSlide: "スライド3",
-    fields: ["形式・回数", "各回テーマと成果物（1行1回）"],
-    hint: "伴走型・成果物名まで書く（省略禁止）",
-  },
-  {
-    id: "ba",
-    title: "③ Before/After",
-    mapsToSlide: "スライド4",
-    fields: ["5ステップの Before/After"],
-    hint: "Before①〜⑤ / After①〜⑤ の形が理想",
-  },
-  {
-    id: "schedule",
-    title: "④ スケジュール",
-    mapsToSlide: "スライド5",
-    fields: ["社内決裁期限", "助成申請締切", "研修開始月", "その他日程"],
-    hint: "申請締切・開始月は必須ラベルとして強調",
-  },
-  {
-    id: "roi",
-    title: "⑤ ROI",
-    mapsToSlide: "スライド6",
-    fields: ["投資前提", "時間削減試算", "定性効果"],
-    hint: "試算例・保証しない注記。助成金はここに書かない",
+    id: "core",
+    title: "骨子（3項目）",
+    mapsToSlide: "2・5・6 ほか",
+    fields: ["研修対象者", "研修開始時期", "主な効果"],
+    hint: "②③④の詳細はB標準■固稿から案件に合わせて肉付け",
   },
   {
     id: "cost",
-    title: "⑦ 実質負担",
-    mapsToSlide: "スライド7",
-    fields: ["研修費（税抜）", "助成見込み", "差引後", "1人あたり", "価格注記"],
-    hint: "ROIスライドと混ぜない",
+    title: "研修費",
+    mapsToSlide: "7",
+    fields: ["研修費（税抜）", "助成・差引・1人あたり（1行・任意）"],
+    hint: "ROI（6）とは別スライド",
   },
   {
     id: "extra",
     title: "追加メモ",
-    mapsToSlide: "固稿への反映（LLM）",
-    fields: ["議事録・音声メモ・PDF/URL参考資料"],
-    hint: "未入力項目の補完や表現調整に使う",
+    mapsToSlide: "全体",
+    fields: ["音声・議事録・PDF/URL"],
+    hint: "任意",
   },
 ];
 
 export const DELIVERY_B_OUTPUT_NOTE =
-  "出力は genspark_prompt.md 形式（Genspark 用 text ブロック付き）。■固稿は削らず、各スライド40%以上図解。";
+  "読み手は経営層固定。出力は genspark_prompt.md（Genspark text 付き）。■固稿省略禁止・各スライド40%以上図解。";

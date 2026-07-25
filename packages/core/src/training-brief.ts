@@ -1,79 +1,72 @@
 import type { TuningB } from "./formats.js";
 
-/** Format B：研修デリバリー提案（8枚）の骨子入力 */
+/** Format B：経営者判断用サマリー（入力は最小3項目＋価格） */
 export interface TrainingDeliveryBrief {
-  /** 読み手（資料の想定読者） */
-  readers: string;
-  /** ① 主対象 */
-  targetMain: string;
-  /** ① 副対象・横展開 */
-  targetSub: string;
-  /** ① 前提・スキル */
-  targetPrerequisites: string;
-  /** ① 対象外 */
-  targetExcluded: string;
-  /** ② 各回の内容（全4回など） */
-  trainingSessions: string;
-  /** ② 回数・時間などの補足 */
-  trainingFormatNotes: string;
-  /** ③ Before/After（5ステップ等） */
-  beforeAfter: string;
-  /** ④ 社内決裁期限 */
-  internalDecisionDeadline: string;
-  /** ④ 助成申請締切 */
-  subsidyApplicationDeadline: string;
-  /** ④ 研修開始月・キックオフ */
-  trainingStartMonth: string;
-  /** ④ その他日程 */
-  scheduleOther: string;
-  /** ⑤ 投資・コスト前提 */
-  roiInvestment: string;
-  /** ⑤ 時間削減・試算 */
-  roiTimeSavings: string;
-  /** ⑤ 定性効果 */
-  roiQualitative: string;
-  /** ⑦ 研修費（税抜） */
+  /** ① 研修対象者（スライド2） */
+  targetParticipants: string;
+  /** ④ 研修開始時期・決裁/締切/キックオフ（スライド5） */
+  trainingStartPeriod: string;
+  /** ⑤ 主な効果・ROIの要約（スライド6。②③はテンプレから適応） */
+  mainEffects: string;
+  /** ⑦ 研修費（税抜・人数・回数など） */
   trainingFeeExTax: string;
-  /** ⑦ 助成見込み */
-  subsidyEstimate: string;
-  /** ⑦ 差引後負担 */
-  netCostAfterSubsidy: string;
-  /** ⑦ 1人あたり */
-  costPerPerson: string;
-  /** 価格・助成の注記 */
-  pricingNotes: string;
+  /** ⑦ 助成・差引後・1人あたりなど（1欄にまとめて可） */
+  subsidyAndNet: string;
 }
 
 export function defaultTrainingBrief(): TrainingDeliveryBrief {
   return {
-    readers: "人事・研修担当、事業部長、経営層（社内決裁前）",
-    targetMain: "BtoBフィールド営業 15名（事業部：東日本営業）",
-    targetSub: "営業企画 2名（テンプレ整備・横展開担当）",
-    targetPrerequisites: "PC・クラウドツールの日常利用可／商談・提案書作成経験あり",
-    targetExcluded: "新入社員のみの座学（別途オンボーディング想定）",
-    trainingSessions: [
-      "第1回：商談準備のAI化（リサーチ・仮説・質問設計）→ 成果物：準備チェックリスト1式",
-      "第2回：提案書・見積説明資料のたたき台生成 → 成果物：提案テンプレ1式",
-      "第3回：議事録・振り返り・次アクションの自動化 → 成果物：振り返りフォーマット1式",
-      "第4回：チーム展開・運用ルール・セキュリティ → 成果物：運用ガイド（社内版）",
-    ].join("\n"),
-    trainingFormatNotes: "伴走型・全4回（各90分等は契約時に確定）",
-    beforeAfter:
-      "Before：顧客情報収集・商談準備・提案書作成・商談後処理・振り返りが属人化\nAfter：AI下調べ・テンプレ＋AI下書き・半自動CRM・チームで検索できるログ（5ステップで記載）",
-    internalDecisionDeadline: "2026年8月15日まで（予算・人数確定）",
-    subsidyApplicationDeadline: "2026年9月10日（助成申請の最終日・例）",
-    trainingStartMonth: "2026年10月（第1回）／全4回：10月2回・11月2回",
-    scheduleOther: "契約・キックオフ：9月下旬／定着確認：12月",
-    roiInvestment: "研修費（4回・17名）＋担当者の受講工数（要見積り）",
-    roiTimeSavings:
-      "1人あたり月5時間 × 17名 × 12か月 × 4,800円/h ≒ 490万円/年（試算例・保証しない）",
-    roiQualitative: "提案スピード向上、属人化低減、CRM入力漏れ低減",
+    targetParticipants:
+      "BtoBフィールド営業 15名（東日本営業）／営業企画 2名。PC・クラウド利用可。新入社員のみの座学は対象外。",
+    trainingStartPeriod:
+      "社内決裁：8月中旬まで／助成申請締切：9月10日（例）／研修開始：2026年10月（第1回）・全4回は10〜11月",
+    mainEffects:
+      "1人あたり月5時間削減×17名×12か月の試算例（490万円/年相当・保証しない）。提案スピード向上・属人化低減・CRM入力漏れ低減。",
     trainingFeeExTax: "170万円（税抜・17名・4回・試算例）",
-    subsidyEstimate: "人材開発支援助成等 75%・上限あり → 見込み127.5万円（試算例）",
-    netCostAfterSubsidy: "42.5万円（税抜・試算例）",
-    costPerPerson: "約2.5万円/人（17名按分・試算例）",
-    pricingNotes: "助成率・上限は制度・審査により変動。見積・要件は契約前に個別確認",
+    subsidyAndNet:
+      "助成見込み127.5万円（75%・上限あり・例）→ 差引後42.5万円・約2.5万円/人。制度・審査により変動。",
   };
+}
+
+/** 旧フォーム localStorage からの移行 */
+export function normalizeTrainingBrief(raw: unknown): TrainingDeliveryBrief {
+  const d = defaultTrainingBrief();
+  if (!raw || typeof raw !== "object") return d;
+  const o = raw as Record<string, unknown>;
+
+  if (typeof o.targetParticipants === "string") {
+    return {
+      targetParticipants: o.targetParticipants || d.targetParticipants,
+      trainingStartPeriod: String(o.trainingStartPeriod ?? d.trainingStartPeriod),
+      mainEffects: String(o.mainEffects ?? d.mainEffects),
+      trainingFeeExTax: String(o.trainingFeeExTax ?? d.trainingFeeExTax),
+      subsidyAndNet: String(o.subsidyAndNet ?? d.subsidyAndNet),
+    };
+  }
+
+  if (typeof o.targetMain === "string") {
+    const target = [o.targetMain, o.targetSub, o.targetPrerequisites, o.targetExcluded]
+      .filter(Boolean)
+      .join("／");
+    const schedule = [o.internalDecisionDeadline, o.subsidyApplicationDeadline, o.trainingStartMonth, o.scheduleOther]
+      .filter(Boolean)
+      .join("／");
+    const effects = [o.roiTimeSavings, o.roiQualitative, o.roiInvestment, o.beforeAfter]
+      .filter(Boolean)
+      .join("\n");
+    const subsidy = [o.subsidyEstimate, o.netCostAfterSubsidy, o.costPerPerson, o.pricingNotes]
+      .filter(Boolean)
+      .join(" → ");
+    return {
+      targetParticipants: target || d.targetParticipants,
+      trainingStartPeriod: schedule || d.trainingStartPeriod,
+      mainEffects: effects || d.mainEffects,
+      trainingFeeExTax: String(o.trainingFeeExTax ?? d.trainingFeeExTax),
+      subsidyAndNet: subsidy || d.subsidyAndNet,
+    };
+  }
+
+  return d;
 }
 
 export function buildTrainingBriefTranscript(
@@ -83,44 +76,28 @@ export function buildTrainingBriefTranscript(
 ): string {
   const trainingName = tuning.projectTitle || "（研修名未入力）";
   const blocks = [
-    "【研修デリバリー提案 B標準・骨子入力】",
+    "【研修デリバリー提案 B標準・骨子入力（経営者判断用）】",
+    "読み手：経営層（社内決裁）。トーンはビジネスライク固定。",
     `提案先：${tuning.clientName}`,
     `提案元：${tuning.proposerName}`,
     `研修名：${trainingName}`,
     `資料版日：${tuning.documentDate}`,
-    `読み手：${brief.readers}`,
     "",
-    "■① 今回の研修の対象者（スライド2）",
-    `主対象：${brief.targetMain}`,
-    `副対象：${brief.targetSub}`,
-    `前提：${brief.targetPrerequisites}`,
-    `対象外：${brief.targetExcluded}`,
+    "■ 入力（以下3点をスライド2・5・6の中心に反映。②③④の細部はB標準■固稿をベースに整合させる）",
     "",
-    "■② 今回の研修で行うこと（スライド3）",
-    brief.trainingFormatNotes,
-    brief.trainingSessions,
+    "【研修対象者】（スライド2・①）",
+    brief.targetParticipants,
     "",
-    "■③ AI活用後の Before / After（スライド4）",
-    brief.beforeAfter,
+    "【研修開始時期】（スライド5・④。申請締切・開始月ラベルを太枠で）",
+    brief.trainingStartPeriod,
     "",
-    "■④ 大枠スケジュール（スライド5）",
-    `社内決裁：${brief.internalDecisionDeadline}`,
-    `助成申請締切：${brief.subsidyApplicationDeadline}`,
-    `研修開始月：${brief.trainingStartMonth}`,
-    brief.scheduleOther,
+    "【主な効果】（スライド6・⑤ ROI。助成差引は載せない）",
+    brief.mainEffects,
     "",
-    "■⑤ ROI・時間削減（スライド6）",
-    `投資：${brief.roiInvestment}`,
-    `効果試算：${brief.roiTimeSavings}`,
-    `定性：${brief.roiQualitative}`,
-    "",
-    "■⑦ 実質負担・価格（スライド7）",
+    "【研修費・実質負担】（スライド7・ROIと別スライド）",
     `研修費（税抜）：${brief.trainingFeeExTax}`,
-    `助成見込み：${brief.subsidyEstimate}`,
-    `差引後：${brief.netCostAfterSubsidy}`,
-    `1人あたり：${brief.costPerPerson}`,
-    brief.pricingNotes,
-  ];
+    brief.subsidyAndNet ? `助成・差引・1人あたり：${brief.subsidyAndNet}` : "",
+  ].filter(Boolean);
 
   const base = blocks.join("\n");
   const extra = extraNotes.trim();
