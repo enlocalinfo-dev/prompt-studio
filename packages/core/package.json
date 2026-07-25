@@ -8,15 +8,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
+      "require": "./dist/serverless.cjs",
       "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json && node scripts/bundle-core-cjs.mjs",
+    "build": "tsc && node scripts/esbuild-serverless.mjs",
     "dev": "tsc --watch"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "typescript": "^5.8.3"
   }
 }

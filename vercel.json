@@ -17,7 +17,7 @@
     },
     "api/generate.ts": {
       "maxDuration": 60,
-      "includeFiles": "packages/core/dist/**,packages/templates/snapshots/**,api/lib/**"
+      "includeFiles": "packages/core/dist/serverless.cjs,packages/templates/snapshots/**,api/lib/**"
     },
     "api/templates/[formatId].ts": {
       "includeFiles": "packages/templates/snapshots/**,api/lib/**"

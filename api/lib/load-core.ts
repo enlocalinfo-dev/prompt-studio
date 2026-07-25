@@ -11,9 +11,14 @@ export async function loadPromptStudioCore() {
     ? createRequire(pkgJson)
     : createRequire(path.join(cwd, "api/generate.ts"));
 
-  const cjsPath = path.join(cwd, "packages/core/dist/index.cjs");
+  const cjsPath = path.join(cwd, "packages/core/dist/serverless.cjs");
   if (fs.existsSync(cjsPath)) {
     return req(cjsPath) as typeof import("@prompt-studio/core");
+  }
+
+  const legacyCjs = path.join(cwd, "packages/core/dist/index.cjs");
+  if (fs.existsSync(legacyCjs)) {
+    return req(legacyCjs) as typeof import("@prompt-studio/core");
   }
 
   const esmPath = path.join(cwd, "packages/core/dist/index.js");
