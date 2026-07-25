@@ -142,7 +142,7 @@ ${exampleSection}
 Output ONLY the ■ slide brief blocks for this case (no section header line).`;
 
   try {
-    const briefs = await createText(client, SLIDE_BRIEFS_SYSTEM, user, 12000);
+    const briefs = await createText(client, SLIDE_BRIEFS_SYSTEM, user, 8192);
     if (!briefs.includes("■")) {
       throw new Error("Slide briefs missing ■ markers");
     }

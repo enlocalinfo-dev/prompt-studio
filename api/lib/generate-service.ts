@@ -58,21 +58,8 @@ export async function runGenerate(body: {
 
   let markdown = "";
 
-  const fullCompose = await composeWithLlm(
-    anthropic,
-    formatId,
-    structured,
-    tuning,
-    master,
-    transcript ?? "",
-    referenceContext,
-  );
-  if (fullCompose.error) composeErrors.push(`full: ${fullCompose.error}`);
-
-  if (fullCompose.markdown.trim().length > 400) {
-    markdown = fullCompose.markdown;
-    generationMode = "llm-full";
-  } else if (anthropic) {
+  // B（8枚デリバリー）: 全文再執筆は重く 60s を超えやすいため ■固稿の差し替えのみ LLM 化
+  if (anthropic) {
     const slideCompose = await composeSlideBriefsWithLlm(
       anthropic,
       formatId,
@@ -86,14 +73,26 @@ export async function runGenerate(body: {
 
     if (slideCompose.briefs.length > 200) {
       const merged = applyTuningToBody(mergeSlideBriefs(master, slideCompose.briefs), tuning);
-      markdown = core.composeMarkdown(
-        formatId,
-        structured,
-        tuning,
-        merged,
-        references,
-      );
+      markdown = core.composeMarkdown(formatId, structured, tuning, merged, references);
       generationMode = "llm-slides";
+    }
+  }
+
+  if (!markdown.trim() && anthropic) {
+    const fullCompose = await composeWithLlm(
+      anthropic,
+      formatId,
+      structured,
+      tuning,
+      master,
+      transcript ?? "",
+      referenceContext,
+    );
+    if (fullCompose.error) composeErrors.push(`full: ${fullCompose.error}`);
+
+    if (fullCompose.markdown.trim().length > 400) {
+      markdown = fullCompose.markdown;
+      generationMode = "llm-full";
     }
   }
 
