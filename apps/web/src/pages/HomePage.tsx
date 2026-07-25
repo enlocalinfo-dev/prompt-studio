@@ -27,13 +27,13 @@ export function HomePage() {
         </h1>
         <p className="mt-5 max-w-2xl text-sm leading-relaxed text-en-muted md:text-[15px]">
           {DELIVERY_B_FORMAT.description}
-          骨子入力を埋めると、B標準テンプレ（全{DELIVERY_B_FORMAT.slideCount}枚）に沿った{" "}
+          まず見積PDFを読み込み、骨子を自動入力したうえで B 標準テンプレ（全{DELIVERY_B_FORMAT.slideCount}枚）の{" "}
           <code className="rounded bg-white/5 px-1.5 py-0.5 text-en-text">genspark_prompt.md</code>{" "}
           を生成します。一般提案（Format A）はこのアプリでは扱いません（Cursor で作成）。
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button className="!px-6 !py-3" onClick={() => nav("/create")}>
-            骨子入力を開始
+            見積PDFから作成
           </Button>
           <span className="self-center text-[11px] text-en-muted">8枚固定</span>
         </div>

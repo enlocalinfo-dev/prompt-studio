@@ -42,6 +42,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (head === "expand-brief") {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "method not allowed" });
+        return;
+      }
+      const { fileName, extractedText, pdfBase64 } = req.body as {
+        fileName?: string;
+        extractedText?: string;
+        pdfBase64?: string;
+      };
+      if (!fileName) {
+        res.status(400).json({ error: "fileName required" });
+        return;
+      }
+      const { expandBriefFromEstimatePdf } = await import("./lib/expand-brief-from-pdf.js");
+      const result = await expandBriefFromEstimatePdf({
+        fileName,
+        extractedText,
+        pdfBase64,
+      });
+      res.status(200).json(result);
+      return;
+    }
+
     if (head === "generate") {
       if (req.method !== "POST") {
         res.status(405).json({ error: "method not allowed" });

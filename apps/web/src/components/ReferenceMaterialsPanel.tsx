@@ -135,10 +135,9 @@ export function ReferenceMaterialsPanel({ value, onChange }: Props) {
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="glass-panel mt-6 rounded-2xl p-5 md:p-6"
     >
-      <h2 className="text-sm font-semibold text-en-text">参考資料（PDF・URL）</h2>
+      <h2 className="text-sm font-semibold text-en-text">追加参考資料（任意）</h2>
       <p className="mt-1 text-xs leading-relaxed text-en-muted">
-        提案のベースになる PDF や Web ページを添付すると、生成時に内容を参照します（最大 PDF {MAX_PDFS}件 /
-        URL {MAX_URLS}件）。
+        見積PDF以外の資料がある場合のみ。メインは上の見積PDF読み込みです。
       </p>
 
       <div className="mt-5">

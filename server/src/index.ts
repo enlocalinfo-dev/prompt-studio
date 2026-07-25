@@ -63,6 +63,26 @@ app.post("/api/fetch-url", async (req, res) => {
   }
 });
 
+app.post("/api/expand-brief", async (req, res) => {
+  try {
+    const { fileName, extractedText, pdfBase64 } = req.body as {
+      fileName?: string;
+      extractedText?: string;
+      pdfBase64?: string;
+    };
+    if (!fileName) {
+      res.status(400).json({ error: "fileName required" });
+      return;
+    }
+    const { expandBriefFromEstimatePdf } = await import("../../api/lib/expand-brief-from-pdf.js");
+    const result = await expandBriefFromEstimatePdf({ fileName, extractedText, pdfBase64 });
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "expand-brief failed" });
+  }
+});
+
 app.post("/api/generate", async (req, res) => {
   try {
     const { formatId, transcript, tuning, references } = req.body as {

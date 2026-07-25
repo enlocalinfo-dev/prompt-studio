@@ -28,6 +28,27 @@ export async function fetchUrlContent(url: string): Promise<{
   return data;
 }
 
+export async function postExpandBriefFromPdf(body: {
+  fileName: string;
+  extractedText?: string;
+  pdfBase64?: string;
+}): Promise<{
+  expanded: import("@prompt-studio/core").ExpandedFromEstimate;
+  usedLlm: boolean;
+}> {
+  const res = await fetch("/api/expand-brief", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = typeof data.detail === "string" ? data.detail : "";
+    throw new Error(detail ? `${data.error ?? "error"}: ${detail}` : (data.error ?? `HTTP ${res.status}`));
+  }
+  return data;
+}
+
 export async function postGenerate(body: {
   formatId: FormatId;
   transcript: string;

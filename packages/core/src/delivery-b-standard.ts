@@ -79,11 +79,11 @@ export interface DeliveryInputSection {
 /** アプリの入力フォーム ↔ スライドの対応 */
 export const DELIVERY_B_INPUT_SECTIONS: DeliveryInputSection[] = [
   {
-    id: "meta",
-    title: "案件メタ",
-    mapsToSlide: "1・表紙",
-    fields: ["提案先", "資料版日", "研修名", "提案元"],
-    hint: "右サイドバーで設定",
+    id: "estimate",
+    title: "見積PDF",
+    mapsToSlide: "全体の起点",
+    fields: ["ENロジカル見積書（PDF）"],
+    hint: "読み込みで提案先・骨子3項目・研修費を自動入力。スキャンPDF可",
   },
   {
     id: "core",

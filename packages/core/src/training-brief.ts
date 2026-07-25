@@ -73,6 +73,7 @@ export function buildTrainingBriefTranscript(
   brief: TrainingDeliveryBrief,
   tuning: Pick<TuningB, "clientName" | "projectTitle" | "documentDate" | "proposerName">,
   extraNotes: string,
+  estimateSlideDetail?: string,
 ): string {
   const trainingName = tuning.projectTitle || "（研修名未入力）";
   const blocks = [
@@ -101,6 +102,12 @@ export function buildTrainingBriefTranscript(
 
   const base = blocks.join("\n");
   const extra = extraNotes.trim();
-  if (!extra) return base;
-  return `${base}\n\n■追加メモ・音声入力\n${extra}`;
+  const parts: string[] = [base];
+  if (estimateSlideDetail?.trim()) {
+    parts.push("", "■見積書より（スライド②③の具体化）", estimateSlideDetail.trim());
+  }
+  if (extra) {
+    parts.push("", "■追加メモ", extra);
+  }
+  return parts.join("\n");
 }
