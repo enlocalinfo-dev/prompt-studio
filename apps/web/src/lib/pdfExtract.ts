@@ -35,7 +35,7 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     text = `${text.slice(0, MAX_CHARS)}\n…（PDFは文字数上限で省略）`;
   }
   if (!text) {
-    throw new Error("PDFからテキストを読み取れませんでした（スキャンPDFの可能性）");
+    return "";
   }
   return text;
 }

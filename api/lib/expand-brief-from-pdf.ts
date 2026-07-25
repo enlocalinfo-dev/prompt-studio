@@ -3,6 +3,10 @@ import {
   heuristicParseEstimateText,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
+import {
+  sanitizeExpandBriefBody,
+  shouldAttachPdfBinary,
+} from "./pdf-upload-limits.js";
 
 import { ANTHROPIC_MODEL_CANDIDATES } from "./anthropic-models.js";
 
@@ -53,7 +57,8 @@ export async function expandBriefFromEstimatePdf(body: {
   extractedText?: string;
   pdfBase64?: string;
 }): Promise<{ expanded: ExpandedFromEstimate; usedLlm: boolean }> {
-  const { fileName, extractedText, pdfBase64 } = body;
+  const sanitized = sanitizeExpandBriefBody(body);
+  const { fileName, extractedText, pdfBase64 } = sanitized;
   const heuristic = extractedText?.trim()
     ? heuristicParseEstimateText(extractedText)
     : { tuning: {}, brief: {}, trainingDetailForSlides: "" };
@@ -75,7 +80,7 @@ ${JSON_SCHEMA}`;
 
   const content: Anthropic.MessageCreateParams["messages"][0]["content"] = [];
 
-  if (pdfBase64 && pdfBase64.length > 100) {
+  if (shouldAttachPdfBinary(extractedText) && pdfBase64 && pdfBase64.length > 100) {
     content.push({
       type: "document",
       source: {

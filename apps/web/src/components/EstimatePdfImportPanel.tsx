@@ -4,18 +4,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postExpandBriefFromPdf } from "../lib/api";
 import { extractTextFromPdf } from "../lib/pdfExtract";
+import { buildExpandBriefRequest, PdfTooLargeError, trimReferencePdfText } from "../lib/expandBriefPayload";
 import { PromptWorkspace } from "./PromptWorkspace";
 import { InlineAlert } from "./InlineAlert";
 import { useToast } from "./Toast";
 import { Button } from "./ui/Button";
-
-async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
 
 export type PdfAppliedPayload = {
   brief: TrainingDeliveryBrief;
@@ -85,12 +78,8 @@ export function EstimatePdfImportPanel({
           extractedText = "";
         }
 
-        const pdfBase64 = await fileToBase64(file);
-        const { expanded, usedLlm } = await postExpandBriefFromPdf({
-          fileName: file.name,
-          extractedText,
-          pdfBase64,
-        });
+        const expandBody = await buildExpandBriefRequest(file, extractedText);
+        const { expanded, usedLlm } = await postExpandBriefFromPdf(expandBody);
 
         const nextBrief = mergeExpandedIntoBrief(brief, expanded.brief ?? {});
         const nextTuning: TuningB = {
@@ -100,9 +89,14 @@ export function EstimatePdfImportPanel({
           documentDate: expanded.tuning?.documentDate?.trim() || tuning.documentDate,
         };
 
+        const refText =
+          extractedText.trim().length > 0
+            ? trimReferencePdfText(extractedText)
+            : `（${file.name} — サーバーでPDFを解釈）`;
+
         const doc: ReferenceDocument = {
           name: file.name,
-          text: extractedText || `（${file.name} — サーバーでPDFを解釈）`,
+          text: refText,
           kind: "pdf",
         };
 
@@ -126,7 +120,12 @@ export function EstimatePdfImportPanel({
         setPhase("ready");
         pushSuccess("提案用プロンプトが完成しました。下の「コピー」から Genspark へ進めます。");
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "処理に失敗しました";
+        const msg =
+          e instanceof PdfTooLargeError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : "処理に失敗しました";
         setErrorMessage(msg);
         setPhase("error");
         pushError(msg);
@@ -224,7 +223,7 @@ export function EstimatePdfImportPanel({
               {lastFile ? `選択中: ${lastFile}` : "PDFをドロップ、またはクリックして選択"}
             </p>
             <p className="mt-2 text-xs text-en-muted">
-              {lastFile ? "クリックで別のPDFに差し替えられます" : "10MBまで · PDF 1ファイル"}
+              {lastFile ? "クリックで別のPDFに差し替えられます" : "文字付きPDF推奨 · スキャンPDFは約2.8MBまで"}
             </p>
             {phase === "ready" && promptResult && (
               <p className="mt-3 text-xs text-en-primary-bright">作成完了 · {promptResult.folderNameSuggestion}</p>

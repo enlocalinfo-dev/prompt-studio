@@ -41,6 +41,11 @@ export async function postExpandBriefFromPdf(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (res.status === 413) {
+    throw new Error(
+      "PDFが大きすぎて送信できません（HTTP 413）。PDFを圧縮するか、文字が選べる形式で保存し直してください。",
+    );
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = typeof data.detail === "string" ? data.detail : "";
@@ -60,6 +65,9 @@ export async function postGenerate(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (res.status === 413) {
+    throw new Error("送信データが大きすぎます（HTTP 413）。追加メモや参考資料を短くしてください。");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = typeof err.detail === "string" ? err.detail : "";
