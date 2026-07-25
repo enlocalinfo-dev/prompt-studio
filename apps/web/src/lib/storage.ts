@@ -1,4 +1,11 @@
-import type { FormatId, ReferenceBundle, TrainingDeliveryBrief, Tuning } from "@prompt-studio/core";
+import type {
+  Extracted,
+  FormatId,
+  PromptSegment,
+  ReferenceBundle,
+  TrainingDeliveryBrief,
+  Tuning,
+} from "@prompt-studio/core";
 import { defaultTrainingBrief, defaultTuning } from "@prompt-studio/core";
 
 const KEY = "prompt-studio-tuning";
@@ -32,6 +39,8 @@ export interface SessionPayload {
     gensparkText: string;
     folderNameSuggestion: string;
     usedLlm: boolean;
+    segments?: PromptSegment[];
+    structured?: Extracted;
   };
 }
 

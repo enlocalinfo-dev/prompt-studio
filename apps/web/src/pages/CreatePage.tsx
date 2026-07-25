@@ -6,6 +6,7 @@ import {
   FORMATS,
   buildTrainingBriefTranscript,
   isTuningA,
+  parseGensparkPrompt,
   referenceSummary,
 } from "@prompt-studio/core";
 import { FineTunePanel } from "../components/FineTunePanel";
@@ -68,7 +69,7 @@ export function CreatePage() {
         tuning,
         references,
       });
-      saveSession({
+      const payload = {
         formatId: id,
         transcript: effectiveTranscript,
         tuning,
@@ -78,10 +79,13 @@ export function CreatePage() {
           gensparkText: result.gensparkText,
           folderNameSuggestion: result.folderNameSuggestion,
           usedLlm: result.usedLlm,
+          structured: result.structured,
+          segments: parseGensparkPrompt(result.markdown),
         },
-      });
+      };
+      saveSession(payload);
       push(result.usedLlm ? "Claude で生成しました" : "テンプレ合成で生成しました");
-      nav("/result");
+      nav("/result", { replace: true, state: { session: payload } });
     } catch (e) {
       push(e instanceof Error ? e.message : "生成に失敗しました");
     } finally {
