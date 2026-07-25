@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { TuningB } from "@prompt-studio/core";
-import type { ReferenceBundle } from "./lib/reference-context.js";
-import { fetchUrlAsText } from "./lib/url-fetch.js";
-import { runGenerate, runHealth } from "./lib/generate-service.js";
-import { loadMasterTemplate, templatesMeta } from "./lib/templates.js";
+import type { ReferenceBundle } from "../service/reference-context.js";
+import { fetchUrlAsText } from "../service/url-fetch.js";
+import { runGenerate, runHealth } from "../service/generate-service.js";
+import { loadMasterTemplate, templatesMeta } from "../service/templates.js";
 
 function routePath(req: VercelRequest): string[] {
   const q = req.query.__path;
@@ -56,13 +56,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(400).json({ error: "fileName required" });
         return;
       }
-      const { sanitizeExpandBriefBody } = await import("./lib/pdf-upload-limits.js");
+      const { sanitizeExpandBriefBody } = await import("../service/pdf-upload-limits.js");
       const safe = sanitizeExpandBriefBody({
         fileName,
         extractedText,
         pdfBase64,
       });
-      const { expandBriefFromEstimatePdf } = await import("./lib/expand-brief-from-pdf.js");
+      const { expandBriefFromEstimatePdf } = await import("../service/expand-brief-from-pdf.js");
       const result = await expandBriefFromEstimatePdf(safe);
       res.status(200).json(result);
       return;

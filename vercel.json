@@ -14,7 +14,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 120,
-      "includeFiles": "packages/core/dist/serverless.cjs,api/lib/**"
+      "includeFiles": "packages/core/dist/serverless.cjs,service/**"
     }
   }
 }

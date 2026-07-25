@@ -1,1 +1,1 @@
-export { extractStructured, composeWithLlm } from "../../api/lib/llm.js";
+export { extractStructured, composeWithLlm } from "../../service/llm.js";

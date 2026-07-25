@@ -3,7 +3,7 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import type { FormatId, ReferenceBundle, TuningB } from "@prompt-studio/core";
-import { fetchUrlAsText } from "../../api/lib/url-fetch.js";
+import { fetchUrlAsText } from "../../service/url-fetch.js";
 import { runGenerate, runHealth } from "./generate-service.js";
 import { loadMasterTemplate, templatesMeta } from "./templates.js";
 
@@ -74,7 +74,7 @@ app.post("/api/expand-brief", async (req, res) => {
       res.status(400).json({ error: "fileName required" });
       return;
     }
-    const { expandBriefFromEstimatePdf } = await import("../../api/lib/expand-brief-from-pdf.js");
+    const { expandBriefFromEstimatePdf } = await import("../../service/expand-brief-from-pdf.js");
     const result = await expandBriefFromEstimatePdf({ fileName, extractedText, pdfBase64 });
     res.json(result);
   } catch (e) {

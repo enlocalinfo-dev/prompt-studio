@@ -1,1 +1,1 @@
-export { runGenerate, runHealth } from "../../api/lib/generate-service.js";
+export { runGenerate, runHealth } from "../../service/generate-service.js";

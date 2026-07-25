@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(scriptsDir, "..");
 const src = path.join(root, "packages/templates/snapshots");
-const dest = path.join(root, "api/lib/template-snapshots");
+const dest = path.join(root, "service/template-snapshots");
 
 if (!fs.existsSync(src)) {
   console.warn("copy-snapshots-for-api: source missing", src);
@@ -18,4 +18,4 @@ for (const name of fs.readdirSync(src)) {
   if (!fs.statSync(from).isFile()) continue;
   fs.copyFileSync(from, path.join(dest, name));
 }
-console.log("copied template snapshots -> api/lib/template-snapshots");
+console.log("copied template snapshots -> service/template-snapshots");

@@ -1,1 +1,1 @@
-export { loadMasterTemplate, templatesMeta } from "../../api/lib/templates.js";
+export { loadMasterTemplate, templatesMeta } from "../../service/templates.js";
