@@ -1,17 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { fetchHealth } from "../lib/api";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
-  const [llm, setLlm] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    fetchHealth()
-      .then((h) => setLlm(h.llm))
-      .catch(() => setLlm(null));
-  }, []);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden en-mesh">
@@ -36,24 +27,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </motion.div>
             <div className="min-w-0">
               <span className="block truncate text-[15px] font-semibold tracking-tight text-en-text">
-                研修デリバリー Prompt
+                提案プロンプト作成
               </span>
-              <span className="block truncate text-[11px] text-en-muted">
-                B標準 · 8枚 · Genspark 用プロンプト
-              </span>
+              <span className="block truncate text-xs text-en-muted">見積PDF → Genspark 用の指示文</span>
             </div>
           </Link>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {llm !== null && (
-              <motion.span
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`hidden rounded-full px-2.5 py-1 text-[10px] font-medium sm:inline ${llm ? "bg-en-primary/15 text-en-accent ring-1 ring-en-primary/30" : "bg-white/5 text-en-muted"}`}
-              >
-                {llm ? "Claude API" : "オフライン合成"}
-              </motion.span>
-            )}
             <Link
               to="/"
               className={`relative rounded-xl px-3 py-2 text-sm ${loc.pathname === "/" ? "text-en-text" : "text-en-muted hover:text-en-text"}`}
@@ -65,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
-              <span className="relative">概要</span>
+              <span className="relative">トップ</span>
             </Link>
             <Link
               to="/create"
@@ -78,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
-              <span className="relative">骨子入力</span>
+              <span className="relative">作成</span>
             </Link>
           </div>
         </div>
@@ -86,20 +66,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="relative mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">{children}</main>
 
-      <footer className="relative border-t border-en-border py-10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <p className="text-sm font-medium text-en-text">AIで、経営の壁を越える。</p>
-            <p className="mt-1 text-xs text-en-muted">Genspark 用プロンプトを、型と伴走で速く。</p>
-          </div>
-          <a
-            href="https://en-logical.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-en-primary-bright transition-colors hover:text-en-accent"
-          >
-            株式会社ENロジカル — en-logical.com
-          </a>
+      <footer className="relative border-t border-en-border py-8">
+        <div className="mx-auto max-w-6xl px-4 md:px-6">
+          <p className="text-xs text-en-muted">株式会社ENロジカル · 社内提案資料ワークフロー</p>
         </div>
       </footer>
     </div>

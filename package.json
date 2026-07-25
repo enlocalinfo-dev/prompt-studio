@@ -2,7 +2,7 @@
   "name": "prompt-studio",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n web,api -c green,blue \"pnpm --filter @prompt-studio/web dev\" \"pnpm --filter @prompt-studio/server dev\"",
+    "dev": "pnpm --filter @prompt-studio/core build && concurrently -n web,api -c green,blue \"pnpm --filter @prompt-studio/web dev\" \"pnpm --filter @prompt-studio/server dev\"",
     "dev:web": "pnpm --filter @prompt-studio/web dev",
     "dev:server": "pnpm --filter @prompt-studio/server dev",
     "build": "pnpm sync-templates && node scripts/copy-snapshots-for-api.mjs && node scripts/emit-templates-bundled.mjs && pnpm --filter @prompt-studio/core build && pnpm --filter @prompt-studio/web build",

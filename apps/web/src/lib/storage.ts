@@ -67,6 +67,19 @@ export function saveSession(payload: SessionPayload): void {
 }
 
 const BRIEF_KEY = "prompt-studio-brief-B";
+const EXTRA_NOTES_KEY = "prompt-studio-extra-notes-B";
+
+export function loadExtraNotes(): string {
+  try {
+    return localStorage.getItem(EXTRA_NOTES_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveExtraNotes(notes: string): void {
+  localStorage.setItem(EXTRA_NOTES_KEY, notes);
+}
 
 export function loadTrainingBrief(): TrainingDeliveryBrief {
   try {
@@ -80,4 +93,47 @@ export function loadTrainingBrief(): TrainingDeliveryBrief {
 
 export function saveTrainingBrief(brief: TrainingDeliveryBrief): void {
   localStorage.setItem(BRIEF_KEY, JSON.stringify(brief));
+}
+
+const HISTORY_KEY = "prompt-studio-history-v1";
+const HISTORY_MAX = 5;
+
+export interface HistoryEntry {
+  id: string;
+  savedAt: string;
+  clientName: string;
+  projectTitle: string;
+  documentDate: string;
+  brief: TrainingDeliveryBrief;
+  tuning: TuningB;
+  gensparkPreview?: string;
+}
+
+export function loadHistory(): HistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as HistoryEntry[];
+    return Array.isArray(arr) ? arr.slice(0, HISTORY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function pushHistory(entry: Omit<HistoryEntry, "id" | "savedAt">): HistoryEntry {
+  const full: HistoryEntry = {
+    ...entry,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    savedAt: new Date().toISOString(),
+  };
+  const prev = loadHistory().filter(
+    (h) => !(h.clientName === full.clientName && h.projectTitle === full.projectTitle && h.documentDate === full.documentDate),
+  );
+  const next = [full, ...prev].slice(0, HISTORY_MAX);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  return full;
+}
+
+export function findHistory(id: string): HistoryEntry | null {
+  return loadHistory().find((h) => h.id === id) ?? null;
 }

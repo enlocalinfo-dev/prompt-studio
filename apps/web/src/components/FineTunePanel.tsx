@@ -5,9 +5,11 @@ import { saveTuningB } from "../lib/storage";
 interface Props {
   tuning: TuningB;
   onChange: (t: TuningB) => void;
+  disabled?: boolean;
+  fieldErrors?: Partial<Record<"clientName" | "documentDate" | "proposerName", string>>;
 }
 
-export function FineTunePanel({ tuning, onChange }: Props) {
+export function FineTunePanel({ tuning, onChange, disabled = false, fieldErrors = {} }: Props) {
   const patch = (partial: Partial<TuningB>) => {
     const next = { ...tuning, ...partial };
     onChange(next);
@@ -21,47 +23,72 @@ export function FineTunePanel({ tuning, onChange }: Props) {
       transition={{ duration: 0.38, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
       className="glass-panel sticky top-36 rounded-2xl p-5 md:p-6"
     >
-      <div className="flex items-center gap-2">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-en-primary/15 text-xs font-bold text-en-accent">
-          B
-        </span>
-        <div>
-          <h2 className="text-sm font-semibold text-en-text">案件メタ</h2>
-          <p className="text-[11px] text-en-muted">表紙・表記ロック用</p>
-        </div>
+      <div>
+        <h2 className="text-sm font-semibold text-en-text">案件情報</h2>
+        <p className="text-xs text-en-muted">表紙・版表示に使います</p>
       </div>
 
-      <div className="mt-5 space-y-4">
-        <label className="block text-xs font-medium text-en-muted">
-          提案先
-          <input className="input-en mt-1.5" value={tuning.clientName} onChange={(e) => patch({ clientName: e.target.value })} />
-        </label>
-        <label className="block text-xs font-medium text-en-muted">
-          資料版日
-          <input className="input-en mt-1.5" value={tuning.documentDate} onChange={(e) => patch({ documentDate: e.target.value })} />
-        </label>
-        <label className="block text-xs font-medium text-en-muted">
-          提案元
-          <input className="input-en mt-1.5" value={tuning.proposerName} onChange={(e) => patch({ proposerName: e.target.value })} />
-        </label>
-        <label className="block text-xs font-medium text-en-muted">
-          研修名（表紙・骨子）
-          <input
-            className="input-en mt-1.5"
-            value={tuning.projectTitle}
-            onChange={(e) => patch({ projectTitle: e.target.value })}
-            placeholder="例：AI活用 営業プロセス改善研修（伴走型・全4回）"
-          />
-        </label>
+      <div className={`mt-5 space-y-4 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+        <MetaField
+          label="提案先（必須）"
+          value={tuning.clientName}
+          error={fieldErrors.clientName}
+          onChange={(v) => patch({ clientName: v })}
+        />
+        <MetaField
+          label="資料版日（必須）"
+          value={tuning.documentDate}
+          error={fieldErrors.documentDate}
+          placeholder="例：2026年7月25日"
+          onChange={(v) => patch({ documentDate: v })}
+        />
+        <MetaField
+          label="提案元（必須）"
+          value={tuning.proposerName}
+          error={fieldErrors.proposerName}
+          onChange={(v) => patch({ proposerName: v })}
+        />
+        <MetaField
+          label="研修名"
+          value={tuning.projectTitle}
+          placeholder="例：AI活用 営業プロセス改善研修（全4回）"
+          onChange={(v) => patch({ projectTitle: v })}
+        />
       </div>
 
-      <div className="mt-5 space-y-4 border-t border-en-border pt-5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-en-muted">B標準 · 8枚固定</p>
-        <Toggle label="実質負担スライド（7）" checked={tuning.netCostSlide} onChange={(v) => patch({ netCostSlide: v })} />
-        <Toggle label="図解・イラスト強調" checked={tuning.illustrationEmphasis} onChange={(v) => patch({ illustrationEmphasis: v })} />
-        <p className="text-xs text-en-muted/90">■固稿の文案省略は常に禁止</p>
+      <div className={`mt-5 space-y-4 border-t border-en-border pt-5 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+        <p className="text-xs font-medium text-en-muted">出力オプション</p>
+        <Toggle label="実質負担のスライドを含める" checked={tuning.netCostSlide} onChange={(v) => patch({ netCostSlide: v })} />
+        <Toggle label="図解・イラストを多めに指示" checked={tuning.illustrationEmphasis} onChange={(v) => patch({ illustrationEmphasis: v })} />
       </div>
     </motion.div>
+  );
+}
+
+function MetaField({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block text-xs font-medium text-en-muted">
+      {label}
+      <input
+        className={`input-en mt-1.5 ${error ? "border-en-accent-strong/50" : ""}`}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error && <span className="mt-1 block text-[11px] text-en-accent-strong">{error}</span>}
+    </label>
   );
 }
 

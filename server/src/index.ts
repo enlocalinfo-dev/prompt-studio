@@ -2,7 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
-import type { FormatId, ReferenceBundle, Tuning } from "@prompt-studio/core";
+import type { FormatId, ReferenceBundle, TuningB } from "@prompt-studio/core";
 import { fetchUrlAsText } from "../../api/lib/url-fetch.js";
 import { runGenerate, runHealth } from "./generate-service.js";
 import { loadMasterTemplate, templatesMeta } from "./templates.js";
@@ -36,8 +36,8 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/templates/:formatId", (req, res) => {
   const formatId = req.params.formatId as FormatId;
-  if (formatId !== "A" && formatId !== "B") {
-    res.status(400).json({ error: "invalid formatId" });
+  if (formatId !== "B") {
+    res.status(400).json({ error: "invalid formatId", detail: "B のみ" });
     return;
   }
   const content = loadMasterTemplate(formatId, DEV_LIVE);
@@ -88,22 +88,26 @@ app.post("/api/generate", async (req, res) => {
     const { formatId, transcript, tuning, references } = req.body as {
       formatId: FormatId;
       transcript: string;
-      tuning: Tuning;
+      tuning: TuningB;
       references?: ReferenceBundle;
     };
-    if (formatId !== "A" && formatId !== "B") {
-      res.status(400).json({ error: "invalid formatId" });
+    if (formatId !== "B") {
+      res.status(400).json({
+        error: "invalid formatId",
+        detail: "研修デリバリー（B）のみ対応",
+      });
       return;
     }
-    if (!tuning?.documentDate) {
+    if (!tuning?.documentDate?.trim()) {
       res.status(400).json({ error: "tuning.documentDate required" });
       return;
     }
-    const result = await runGenerate({ formatId, transcript, tuning, references });
+    const result = await runGenerate({ formatId: "B", transcript, tuning, references });
     res.json(result);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "generate failed" });
+    const err = e instanceof Error ? e : new Error(String(e));
+    res.status(500).json({ error: "generate failed", detail: err.message });
   }
 });
 

@@ -1,9 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import type { ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
 import {
-  DELIVERY_B_FORMAT,
   buildTrainingBriefTranscript,
   parseGensparkPrompt,
   referenceSummary,
@@ -12,23 +11,49 @@ import {
   EstimatePdfImportPanel,
   type InlinePromptResult,
   type PdfAppliedPayload,
+  type PdfPhase,
 } from "../components/EstimatePdfImportPanel";
 import { FineTunePanel } from "../components/FineTunePanel";
+import { GenerationProgressOverlay, type GenPhase } from "../components/GenerationProgressOverlay";
+import { InlineAlert } from "../components/InlineAlert";
 import { ReferenceMaterialsPanel, emptyReferences } from "../components/ReferenceMaterialsPanel";
+import { StickyCopyBar } from "../components/StickyCopyBar";
 import { TrainingDeliveryBriefForm } from "../components/TrainingDeliveryBriefForm";
 import { useToast } from "../components/Toast";
 import { Button } from "../components/ui/Button";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { postGenerate } from "../lib/api";
-import { loadTrainingBrief, loadTuningB, saveSession, saveTrainingBrief, saveTuningB } from "../lib/storage";
+import {
+  findHistory,
+  loadExtraNotes,
+  loadTrainingBrief,
+  loadTuningB,
+  pushHistory,
+  saveExtraNotes,
+  saveSession,
+  saveTrainingBrief,
+  saveTuningB,
+} from "../lib/storage";
 
 const FORMAT_ID = "B" as const;
 
+type FieldErrors = Partial<Record<"clientName" | "documentDate" | "proposerName" | "pdf", string>>;
+
+function validateTuning(tuning: TuningB, pdfLoaded: boolean, refsLen: number): FieldErrors {
+  const err: FieldErrors = {};
+  if (!pdfLoaded && refsLen === 0) err.pdf = "先に見積PDFを読み込んでください";
+  if (!tuning.clientName?.trim()) err.clientName = "提案先を入力してください";
+  if (!tuning.documentDate?.trim()) err.documentDate = "資料版日を入力してください";
+  if (!tuning.proposerName?.trim()) err.proposerName = "提案元を入力してください";
+  return err;
+}
+
 export function CreatePage() {
   const nav = useNavigate();
-  const { push } = useToast();
+  const location = useLocation();
+  const { pushSuccess, pushError } = useToast();
 
-  const [extraNotes, setExtraNotes] = useState("");
+  const [extraNotes, setExtraNotes] = useState(() => loadExtraNotes());
   const [estimateSlideDetail, setEstimateSlideDetail] = useState("");
   const [brief, setBrief] = useState<TrainingDeliveryBrief>(() => loadTrainingBrief());
   const [references, setReferences] = useState<ReferenceBundle>(() => emptyReferences());
@@ -36,17 +61,48 @@ export function CreatePage() {
   const [loading, setLoading] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
   const [inlinePrompt, setInlinePrompt] = useState<InlinePromptResult | null>(null);
+  const [pdfPhase, setPdfPhase] = useState<PdfPhase>("idle");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [step2Open, setStep2Open] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
+  const overlayPhase: GenPhase =
+    pdfPhase === "parsing" ? "parsing" : pdfPhase === "generating" || loading ? "generating" : null;
+
+  const formLocked = pdfPhase === "parsing" || pdfPhase === "generating" || loading;
+
+  useEffect(() => {
+    const id = (location.state as { restoreHistoryId?: string } | null)?.restoreHistoryId;
+    if (!id) return;
+    const h = findHistory(id);
+    if (!h) return;
+    setBrief(h.brief);
+    saveTrainingBrief(h.brief);
+    setTuning(h.tuning);
+    saveTuningB(h.tuning);
+    setPdfLoaded(true);
+    setStep2Open(true);
+    window.history.replaceState({}, "", location.pathname);
+  }, [location.pathname, location.state]);
+
+  useEffect(() => {
+    if (pdfLoaded || pdfPhase === "ready") setStep2Open(true);
+  }, [pdfLoaded, pdfPhase]);
 
   const appendSpeech = useCallback((chunk: string) => {
-    setExtraNotes(chunk);
+    setExtraNotes((prev) => {
+      const next = prev ? `${prev}\n${chunk}` : chunk;
+      saveExtraNotes(next);
+      return next;
+    });
+  }, []);
+
+  const setExtraNotesPersisted = useCallback((v: string) => {
+    setExtraNotes(v);
+    saveExtraNotes(v);
   }, []);
 
   const { supported, listening, error, start, stop } = useSpeechRecognition(appendSpeech);
-
-  const effectiveTranscript = useMemo(
-    () => buildTrainingBriefTranscript(brief, tuning, extraNotes, estimateSlideDetail),
-    [brief, tuning, extraNotes, estimateSlideDetail],
-  );
 
   const runGenerate = useCallback(
     async (input: {
@@ -87,6 +143,14 @@ export function CreatePage() {
         },
       };
       saveSession(payload);
+      pushHistory({
+        clientName: input.tuning.clientName,
+        projectTitle: input.tuning.projectTitle,
+        documentDate: input.tuning.documentDate,
+        brief: input.brief,
+        tuning: input.tuning,
+        gensparkPreview: inline.gensparkText.slice(0, 120),
+      });
       setInlinePrompt(inline);
       if (input.openResultPage) {
         nav("/result", { replace: true, state: { session: payload } });
@@ -103,12 +167,18 @@ export function CreatePage() {
     saveTuningB(payload.tuning);
     setEstimateSlideDetail(payload.slideDetail ?? "");
     setPdfLoaded(true);
+    setFieldErrors({});
+    setBannerError(null);
     setReferences((prev) => ({
       ...prev,
       documents: [payload.document, ...prev.documents.filter((d) => d.name !== payload.document.name)].slice(0, 5),
     }));
     if (payload.notes?.trim()) {
-      setExtraNotes((prev) => (prev ? `${prev}\n${payload.notes}` : payload.notes!));
+      setExtraNotes((prev) => {
+        const next = prev ? `${prev}\n${payload.notes}` : payload.notes!;
+        saveExtraNotes(next);
+        return next;
+      });
     }
   }, []);
 
@@ -132,11 +202,15 @@ export function CreatePage() {
   );
 
   async function handleRegenerate() {
-    if (!pdfLoaded && references.documents.length === 0) {
-      push("先に見積PDFを読み込んでください");
+    const errs = validateTuning(tuning, pdfLoaded, references.documents.length);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      const first = errs.pdf ?? errs.clientName ?? errs.documentDate ?? errs.proposerName;
+      pushError(first ?? "入力を確認してください");
       return;
     }
     setLoading(true);
+    setBannerError(null);
     try {
       await runGenerate({
         brief,
@@ -146,77 +220,160 @@ export function CreatePage() {
         references,
         openResultPage: false,
       });
-      push("プロンプトを再生成しました（Step 1 の表示も更新されています）");
+      pushSuccess("内容を反映して再作成しました");
     } catch (e) {
-      push(e instanceof Error ? e.message : "生成に失敗しました");
+      const msg = e instanceof Error ? e.message : "作成に失敗しました";
+      setBannerError(msg);
+      pushError(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  function openFullResultPage() {
-    if (!inlinePrompt) {
-      push("先にPDFから生成するか、再生成してください");
-      return;
+  async function copyGenspark() {
+    if (!inlinePrompt) return;
+    try {
+      await navigator.clipboard.writeText(inlinePrompt.gensparkText || inlinePrompt.markdown);
+      pushSuccess("コピーしました。Genspark に貼り付けてください。");
+    } catch {
+      pushError("コピーできませんでした。ブラウザの権限を確認してください。");
     }
-    nav("/result");
   }
 
+  function downloadMd() {
+    if (!inlinePrompt) return;
+    const blob = new Blob([inlinePrompt.markdown], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "genspark_prompt.md";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    pushSuccess("ファイルを保存しました");
+  }
+
+  const showSticky = Boolean(inlinePrompt?.gensparkText || inlinePrompt?.markdown);
+
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
-        ← 概要
-      </Button>
+    <>
+      <GenerationProgressOverlay phase={overlayPhase} />
+      <StickyCopyBar visible={showSticky} onCopy={() => void copyGenspark()} onDownload={downloadMd} busy={loading} />
 
-      <EstimatePdfImportPanel
-        brief={brief}
-        tuning={tuning}
-        promptResult={inlinePrompt}
-        onApplied={handlePdfApplied}
-        onAutoGenerate={handleAutoGenerateFromPdf}
-      />
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className={showSticky ? "pb-28" : ""}
+      >
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
+          ← トップ
+        </Button>
 
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-en-accent">Step 2 — 骨子の確認・再生成</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">{DELIVERY_B_FORMAT.label}</h1>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="glass-panel rounded-2xl p-5 md:p-6">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            {supported && (
-              <Button variant={listening ? "secondary" : "primary"} onClick={listening ? stop : start}>
-                {listening ? "停止" : "音声メモ"}
-              </Button>
-            )}
+        {bannerError && (
+          <div className="mt-4">
+            <InlineAlert
+              tone="error"
+              title="作成に失敗しました"
+              message={bannerError}
+              action={
+                <Button variant="secondary" className="!py-1.5 !text-xs" onClick={() => void handleRegenerate()}>
+                  再試行
+                </Button>
+              }
+              onDismiss={() => setBannerError(null)}
+            />
           </div>
-          {error && <p className="mb-4 text-xs text-en-accent-strong">{error}</p>}
-          <TrainingDeliveryBriefForm
-            brief={brief}
-            tuning={tuning}
-            onBriefChange={setBrief}
-            extraNotes={extraNotes}
-            onExtraNotesChange={setExtraNotes}
-          />
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <Button className="flex-1 !py-3.5" disabled={loading} onClick={handleRegenerate}>
-              {loading ? "再生成中…" : "骨子を直して再生成"}
-            </Button>
-            <Button variant="secondary" className="flex-1 !py-3.5" disabled={!inlinePrompt} onClick={openFullResultPage}>
-              結果を全画面で開く
-            </Button>
+        )}
+
+        <EstimatePdfImportPanel
+          brief={brief}
+          tuning={tuning}
+          promptResult={inlinePrompt}
+          onApplied={handlePdfApplied}
+          onAutoGenerate={handleAutoGenerateFromPdf}
+          onPhaseChange={setPdfPhase}
+        />
+
+        {!pdfLoaded && pdfPhase === "idle" && (
+          <p className="mt-4 text-sm text-en-muted">PDFを読み込むと、内容の確認・修正ができるようになります。</p>
+        )}
+
+        {(pdfLoaded || step2Open) && (
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => setStep2Open((o) => !o)}
+              className="flex w-full items-center justify-between rounded-xl border border-en-border bg-white/[0.02] px-4 py-3 text-left"
+            >
+              <span>
+                <span className="text-xs font-semibold text-en-accent">ステップ 2</span>
+                <span className="ml-2 text-sm font-semibold text-en-text">内容を確認・修正する</span>
+              </span>
+              <span className="text-xs text-en-muted">{step2Open ? "閉じる" : "開く"}</span>
+            </button>
+
+            <AnimatePresence>
+              {step2Open && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+                    <div className={`glass-panel rounded-2xl p-5 md:p-6 ${formLocked ? "pointer-events-none opacity-60" : ""}`}>
+                      {fieldErrors.pdf && (
+                        <div className="mb-4">
+                          <InlineAlert tone="error" title={fieldErrors.pdf} />
+                        </div>
+                      )}
+                      <div className="mb-4 flex flex-wrap items-center gap-3">
+                        {supported && (
+                          <Button variant={listening ? "secondary" : "primary"} onClick={listening ? stop : start}>
+                            {listening ? "音声入力を停止" : "音声でメモ"}
+                          </Button>
+                        )}
+                      </div>
+                      {error && <p className="mb-4 text-xs text-en-accent-strong">{error}</p>}
+                      <TrainingDeliveryBriefForm
+                        brief={brief}
+                        tuning={tuning}
+                        onBriefChange={setBrief}
+                        extraNotes={extraNotes}
+                        onExtraNotesChange={setExtraNotesPersisted}
+                        disabled={formLocked}
+                      />
+                      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                        <Button className="flex-1 !py-3.5" disabled={loading || formLocked} onClick={() => void handleRegenerate()}>
+                          {loading ? "作成中…" : "修正を反映して再作成"}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="flex-1 !py-3.5"
+                          disabled={!inlinePrompt}
+                          onClick={() => nav("/result")}
+                        >
+                          プレビューを大きく表示
+                        </Button>
+                      </div>
+                    </div>
+                    <FineTunePanel
+                      tuning={tuning}
+                      onChange={setTuning}
+                      disabled={formLocked}
+                      fieldErrors={fieldErrors}
+                    />
+                  </div>
+
+                  <ReferenceMaterialsPanel value={references} onChange={setReferences} />
+                  {referenceSummary(references) && (
+                    <p className="mt-3 text-center text-xs text-en-muted">{referenceSummary(references)}</p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-        <FineTunePanel tuning={tuning} onChange={setTuning} />
-      </div>
-
-      <ReferenceMaterialsPanel value={references} onChange={setReferences} />
-
-      {referenceSummary(references) && (
-        <p className="mt-3 text-center text-[11px] text-en-muted">{referenceSummary(references)}</p>
-      )}
-    </motion.div>
+        )}
+      </motion.div>
+    </>
   );
 }

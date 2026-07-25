@@ -1,10 +1,11 @@
 import type { PromptSegment, ReferenceDocument, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
 import { mergeExpandedIntoBrief } from "@prompt-studio/core";
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { postExpandBriefFromPdf } from "../lib/api";
 import { extractTextFromPdf } from "../lib/pdfExtract";
 import { PromptWorkspace } from "./PromptWorkspace";
+import { InlineAlert } from "./InlineAlert";
 import { useToast } from "./Toast";
 import { Button } from "./ui/Button";
 
@@ -32,7 +33,7 @@ export type InlinePromptResult = {
   segments: PromptSegment[];
 };
 
-type Phase = "idle" | "parsing" | "generating" | "ready" | "error";
+export type PdfPhase = "idle" | "parsing" | "generating" | "ready" | "error";
 
 interface Props {
   brief: TrainingDeliveryBrief;
@@ -40,6 +41,7 @@ interface Props {
   promptResult: InlinePromptResult | null;
   onApplied: (payload: PdfAppliedPayload) => void;
   onAutoGenerate: (payload: PdfAppliedPayload) => Promise<InlinePromptResult>;
+  onPhaseChange?: (phase: PdfPhase) => void;
 }
 
 export function EstimatePdfImportPanel({
@@ -48,9 +50,17 @@ export function EstimatePdfImportPanel({
   promptResult,
   onApplied,
   onAutoGenerate,
+  onPhaseChange,
 }: Props) {
-  const { push } = useToast();
-  const [phase, setPhase] = useState<Phase>("idle");
+  const { pushSuccess, pushError } = useToast();
+  const [phase, setPhaseState] = useState<PdfPhase>("idle");
+  const setPhase = useCallback(
+    (p: PdfPhase) => {
+      setPhaseState(p);
+      onPhaseChange?.(p);
+    },
+    [onPhaseChange],
+  );
   const [dragOver, setDragOver] = useState(false);
   const [lastFile, setLastFile] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -62,7 +72,7 @@ export function EstimatePdfImportPanel({
   const ingest = useCallback(
     async (file: File) => {
       if (!file.name.toLowerCase().endsWith(".pdf")) {
-        push("見積PDF（.pdf）を選んでください");
+        pushError("見積PDF（.pdf）を選んでください");
         return;
       }
       setErrorMessage(null);
@@ -92,7 +102,7 @@ export function EstimatePdfImportPanel({
 
         const doc: ReferenceDocument = {
           name: file.name,
-          text: extractedText || `（${file.name} — PDFをClaudeで解釈）`,
+          text: extractedText || `（${file.name} — サーバーでPDFを解釈）`,
           kind: "pdf",
         };
 
@@ -107,45 +117,29 @@ export function EstimatePdfImportPanel({
         onApplied(applied);
         setLastFile(file.name);
 
-        push(
-          usedLlm
-            ? "見積を反映しました。プロンプトを生成しています…"
-            : "PDFを読み込みました。プロンプトを生成しています…",
-        );
+        if (!usedLlm) {
+          pushSuccess("PDFを読み込みました。内容を確認してください。");
+        }
 
         setPhase("generating");
         await onAutoGenerate(applied);
         setPhase("ready");
-        push("Genspark プロンプトを生成しました（下で確認・コピーできます）");
+        pushSuccess("提案用プロンプトが完成しました。下の「コピー」から Genspark へ進めます。");
       } catch (e) {
         const msg = e instanceof Error ? e.message : "処理に失敗しました";
         setErrorMessage(msg);
         setPhase("error");
-        push(msg);
+        pushError(msg);
       } finally {
         if (fileRef.current) fileRef.current.value = "";
       }
     },
-    [brief, onApplied, onAutoGenerate, push, tuning],
+    [brief, onApplied, onAutoGenerate, pushError, pushSuccess, setPhase, tuning],
   );
 
-  async function copyGenspark() {
-    if (!promptResult) return;
-    const text = promptResult.gensparkText || promptResult.markdown;
-    await navigator.clipboard.writeText(text);
-    push("Genspark 用 text をコピーしました");
-  }
-
-  function downloadMd() {
-    if (!promptResult) return;
-    const blob = new Blob([promptResult.markdown], { type: "text/markdown;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "genspark_prompt.md";
-    a.click();
-    URL.revokeObjectURL(a.href);
-    push("ダウンロードしました");
-  }
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [onPhaseChange, phase]);
 
   const showWorkspace = phase === "ready" && promptResult && promptResult.segments.length > 0;
 
@@ -155,11 +149,30 @@ export function EstimatePdfImportPanel({
       animate={{ opacity: 1, y: 0 }}
       className="glass-panel rounded-2xl p-5 md:p-6"
     >
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-en-accent">Step 1 — 見積PDF → プロンプト</p>
-      <h2 className="mt-1 text-sm font-semibold text-en-text">見積PDFを選ぶと、ここで骨子入力と生成まで進みます</h2>
-      <p className="mt-2 text-xs leading-relaxed text-en-muted">
-        解析後に自動で Genspark 用プロンプト（8枚）を生成し、このエリア内で2ペイン確認できます。骨子の修正は Step 2 から再生成できます。
+      <p className="text-xs font-semibold text-en-accent">ステップ 1</p>
+      <h2 className="mt-1 text-lg font-semibold text-en-text">見積PDFを選ぶ</h2>
+      <p className="mt-2 text-sm leading-relaxed text-en-muted">
+        ENロジカル形式の見積PDFから、提案先・研修内容・費用を読み取り、スライド8枚分の指示文を自動作成します。
       </p>
+
+      {phase === "error" && errorMessage && (
+        <div className="mt-4">
+          <InlineAlert
+            tone="error"
+            title="処理できませんでした"
+            message={errorMessage}
+            action={
+              <Button variant="secondary" className="!py-1.5 !text-xs" onClick={() => fileRef.current?.click()}>
+                別のPDFを選ぶ
+              </Button>
+            }
+            onDismiss={() => {
+              setPhase("idle");
+              setErrorMessage(null);
+            }}
+          />
+        </div>
+      )}
 
       <input
         ref={fileRef}
@@ -175,6 +188,7 @@ export function EstimatePdfImportPanel({
       <motion.div
         role="button"
         tabIndex={0}
+        aria-label="見積PDFをアップロード"
         onClick={() => !busy && fileRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
@@ -200,57 +214,31 @@ export function EstimatePdfImportPanel({
           const f = e.dataTransfer.files?.[0];
           if (f) void ingest(f);
         }}
-        className={`mt-4 cursor-pointer rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+        className={`mt-4 cursor-pointer rounded-2xl border-2 border-dashed px-4 py-10 text-center transition-colors ${
           dragOver ? "border-en-primary/60 bg-en-primary/10" : "border-en-border bg-en-deep/35 hover:border-en-primary/35"
-        } ${busy ? "pointer-events-none opacity-70" : ""} ${showWorkspace ? "py-5" : "py-10"}`}
+        } ${busy ? "pointer-events-none opacity-70" : ""}`}
       >
-        {phase === "parsing" && (
-          <p className="text-sm font-medium text-en-accent">見積を解析中…（30秒ほどかかることがあります）</p>
-        )}
-        {phase === "generating" && (
-          <div>
-            <p className="text-sm font-medium text-en-accent">Genspark プロンプトを生成中…（8枚）</p>
-            <p className="mt-2 text-[11px] text-en-muted">Claude が B 標準テンプレに沿って執筆しています</p>
-          </div>
-        )}
-        {phase === "error" && (
-          <div>
-            <p className="text-sm font-medium text-en-accent-strong">エラー: {errorMessage}</p>
-            <p className="mt-2 text-[11px] text-en-muted">別のPDFを選ぶか、しばらくして再試行してください</p>
-          </div>
-        )}
         {(phase === "idle" || phase === "ready") && (
           <>
             <p className="text-sm font-medium text-en-text">
-              {lastFile ? `選択中: ${lastFile}` : "見積PDFをドロップ、またはクリック"}
+              {lastFile ? `選択中: ${lastFile}` : "PDFをドロップ、またはクリックして選択"}
             </p>
-            <p className="mt-2 text-[11px] text-en-muted">
-              {lastFile ? "クリックで別のPDFに差し替え" : "10MBまで · 1ファイル"}
+            <p className="mt-2 text-xs text-en-muted">
+              {lastFile ? "クリックで別のPDFに差し替えられます" : "10MBまで · PDF 1ファイル"}
             </p>
             {phase === "ready" && promptResult && (
-              <p className="mt-3 text-[11px] text-en-primary-bright">
-                生成完了 · {promptResult.usedLlm ? "Claude" : "テンプレ合成"} · {promptResult.folderNameSuggestion}
-              </p>
+              <p className="mt-3 text-xs text-en-primary-bright">作成完了 · {promptResult.folderNameSuggestion}</p>
             )}
           </>
         )}
+        {(phase === "parsing" || phase === "generating") && (
+          <p className="text-sm font-medium text-en-accent">処理中です。画面全体の進行表示をご確認ください。</p>
+        )}
       </motion.div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={busy} onClick={() => fileRef.current?.click()}>
-          {lastFile ? "PDFを差し替え" : "PDFを選ぶ"}
-        </Button>
-        {showWorkspace && (
-          <>
-            <Button variant="secondary" onClick={() => void copyGenspark()}>
-              Genspark 全文コピー
-            </Button>
-            <Button variant="primary" onClick={downloadMd}>
-              .md ダウンロード
-            </Button>
-          </>
-        )}
-      </div>
+      <Button variant="secondary" className="mt-3" disabled={busy} onClick={() => fileRef.current?.click()}>
+        {lastFile ? "PDFを差し替え" : "PDFを選ぶ"}
+      </Button>
 
       <AnimatePresence>
         {showWorkspace && promptResult && (
@@ -261,14 +249,15 @@ export function EstimatePdfImportPanel({
             transition={{ duration: 0.35 }}
             className="mt-6 overflow-hidden border-t border-en-border pt-6"
           >
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-en-accent">生成結果（このPDFから）</p>
+            <p className="text-xs font-semibold text-en-text">内容のプレビュー</p>
+            <p className="mt-1 text-xs text-en-muted">問題なければ、画面下の「貼り付け用の文をコピー」を押してください。</p>
             <div className="mt-4">
               <PromptWorkspace
                 segments={promptResult.segments}
                 gensparkText={promptResult.gensparkText || promptResult.markdown}
                 onCopySegment={async (text) => {
                   await navigator.clipboard.writeText(text);
-                  push("コピーしました");
+                  pushSuccess("コピーしました");
                 }}
               />
             </div>

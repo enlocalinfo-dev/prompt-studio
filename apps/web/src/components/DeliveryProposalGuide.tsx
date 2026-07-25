@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import {
   DELIVERY_B_INPUT_SECTIONS,
-  DELIVERY_B_OUTPUT_NOTE,
   DELIVERY_B_SLIDES,
 } from "@prompt-studio/core";
 
@@ -14,8 +13,10 @@ export function DeliveryProposalGuide() {
         transition={{ delay: 0.08 }}
         className="glass-panel rounded-2xl p-5 md:p-6"
       >
-        <h2 className="text-sm font-semibold text-en-text">できること（出力）</h2>
-        <p className="mt-2 text-xs leading-relaxed text-en-muted">{DELIVERY_B_OUTPUT_NOTE}</p>
+        <h2 className="text-sm font-semibold text-en-text">作成される内容</h2>
+        <p className="mt-2 text-xs leading-relaxed text-en-muted">
+          経営者向けサマリー8枚分の指示文です。図解多め・文案省略なしで出力します。
+        </p>
         <ol className="mt-4 space-y-2.5">
           {DELIVERY_B_SLIDES.map((s) => (
             <li key={s.order} className="flex gap-3 text-[11px] leading-relaxed md:text-xs">
@@ -41,9 +42,9 @@ export function DeliveryProposalGuide() {
         transition={{ delay: 0.12 }}
         className="glass-panel rounded-2xl p-5 md:p-6"
       >
-        <h2 className="text-sm font-semibold text-en-text">必要なインプット</h2>
+        <h2 className="text-sm font-semibold text-en-text">入力の対応関係</h2>
         <p className="mt-2 text-xs leading-relaxed text-en-muted">
-          次画面のフォーム項目です。B標準テンプレの■固稿に沿って Genspark 用プロンプトを組み立てます。
+          見積PDFと確認画面の項目が、各スライドの内容になります。
         </p>
         <ul className="mt-4 space-y-4">
           {DELIVERY_B_INPUT_SECTIONS.map((sec) => (

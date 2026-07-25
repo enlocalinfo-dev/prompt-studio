@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { parseGensparkPrompt, type PromptSegment } from "@prompt-studio/core";
 import { PromptWorkspace } from "../components/PromptWorkspace";
+import { StickyCopyBar } from "../components/StickyCopyBar";
 import { useToast } from "../components/Toast";
 import { Button } from "../components/ui/Button";
 import { loadSession, saveSession, type SessionPayload } from "../lib/storage";
@@ -12,7 +13,7 @@ type LocationState = { session?: SessionPayload };
 export function ResultPage() {
   const nav = useNavigate();
   const location = useLocation();
-  const { push } = useToast();
+  const { pushSuccess, pushError } = useToast();
   const navState = (location.state as LocationState | null)?.session;
 
   const [session, setSession] = useState<SessionPayload | null>(() => navState ?? loadSession());
@@ -36,10 +37,10 @@ export function ResultPage() {
   if (!session || !content) {
     return (
       <div className="glass-panel rounded-2xl p-8 text-center text-sm text-en-muted">
-        生成結果がありません。先にプロンプトを生成してください。
-        <div className="mt-4">
-          <Button variant="secondary" onClick={() => nav("/")}>
-            ホームへ
+        表示する結果がありません。先に見積PDFから作成してください。
+        <div className="mt-4 flex justify-center gap-2">
+          <Button variant="primary" onClick={() => nav("/create")}>
+            作成を開始
           </Button>
         </div>
       </div>
@@ -48,8 +49,12 @@ export function ResultPage() {
 
   async function copyGenspark() {
     const text = content!.gensparkText || content!.markdown;
-    await navigator.clipboard.writeText(text);
-    push("Genspark 用 text をコピーしました");
+    try {
+      await navigator.clipboard.writeText(text);
+      pushSuccess("コピーしました。Genspark に貼り付けてください。");
+    } catch {
+      pushError("コピーできませんでした");
+    }
   }
 
   function downloadMd() {
@@ -59,48 +64,38 @@ export function ResultPage() {
     a.download = "genspark_prompt.md";
     a.click();
     URL.revokeObjectURL(a.href);
-    push("ダウンロードしました");
+    pushSuccess("ファイルを保存しました");
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create")}>
-        ← 骨子入力に戻る
-      </Button>
+    <>
+      <StickyCopyBar visible onCopy={() => void copyGenspark()} onDownload={downloadMd} />
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="pb-28"
+      >
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create")}>
+          ← 作成に戻る
+        </Button>
 
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-en-accent">Step 2 — プロンプト</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">生成結果（2ペイン確認）</h1>
+        <div className="mt-4">
+          <h1 className="text-2xl font-semibold tracking-tight">プレビュー</h1>
           <p className="mt-2 font-mono text-xs text-en-muted">{content.folderNameSuggestion}</p>
-          <p className="mt-1 text-[11px] text-en-muted">
-            {content.usedLlm ? "Claude 生成" : "テンプレ合成"} · {segments.length} パート
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={copyGenspark}>
-            Genspark 全文コピー
-          </Button>
-          <Button variant="primary" onClick={downloadMd}>
-            .md ダウンロード
-          </Button>
-        </div>
-      </div>
 
-      <div className="mt-6">
-        <PromptWorkspace
-          segments={segments}
-          gensparkText={content.gensparkText || content.markdown}
-          onCopySegment={async (text) => {
-            await navigator.clipboard.writeText(text);
-            push("コピーしました");
-          }}
-        />
-      </div>
-    </motion.div>
+        <div className="mt-6">
+          <PromptWorkspace
+            segments={segments}
+            gensparkText={content.gensparkText || content.markdown}
+            onCopySegment={async (text) => {
+              await navigator.clipboard.writeText(text);
+              pushSuccess("コピーしました");
+            }}
+          />
+        </div>
+      </motion.div>
+    </>
   );
 }
