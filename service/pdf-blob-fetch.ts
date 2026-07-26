@@ -1,7 +1,9 @@
 /** expand-brief：Blob URL から PDF を取得して base64 化 */
 
+import { MAX_ESTIMATE_PDF_BYTES, MAX_ESTIMATE_PDF_MB } from "./pdf-size-limits.js";
+
 const ALLOWED_BLOB_HOST_SUFFIX = ".blob.vercel-storage.com";
-const MAX_FETCH_BYTES = 25 * 1024 * 1024;
+const MAX_FETCH_BYTES = MAX_ESTIMATE_PDF_BYTES + 2 * 1024 * 1024;
 
 export function isAllowedPdfBlobUrl(url: string): boolean {
   try {
@@ -24,7 +26,7 @@ export async function fetchPdfBase64FromBlobUrl(pdfBlobUrl: string): Promise<str
 
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > MAX_FETCH_BYTES) {
-    throw new Error("PDFが大きすぎて解析できません（25MB以下にしてください）");
+    throw new Error(`PDFが大きすぎて解析できません（${MAX_ESTIMATE_PDF_MB}MB以下にしてください）`);
   }
 
   return buf.toString("base64");

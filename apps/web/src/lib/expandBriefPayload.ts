@@ -1,12 +1,15 @@
 /** expand-brief 用：413 を避けるため、テキストが取れれば PDF 本体は送らない */
 
 import { upload } from "@vercel/blob/client";
+import {
+  formatMaxPdfSizeLabel,
+  MAX_ESTIMATE_PDF_BYTES,
+} from "./pdfSizeLimits";
 
 export const MIN_EXTRACTED_TEXT_CHARS = 80;
 /** JSON + base64 で Vercel 4.5MB 以内に収める生 PDF 上限 */
 export const MAX_RAW_PDF_BYTES_FOR_UPLOAD = 2_800_000;
-/** Blob 経由（スキャンPDFなど） */
-export const MAX_BLOB_PDF_BYTES = 20 * 1024 * 1024;
+export const MAX_BLOB_PDF_BYTES = MAX_ESTIMATE_PDF_BYTES;
 const MAX_EXTRACTED_TEXT_CHARS = 50_000;
 
 export type ExpandBriefRequestBody = {
@@ -59,7 +62,7 @@ export async function buildExpandBriefRequest(
 
   if (file.size > MAX_BLOB_PDF_BYTES) {
     throw new PdfTooLargeError(
-      `PDFが大きすぎます（${Math.round(MAX_BLOB_PDF_BYTES / 1024 / 1024)}MB以下にしてください）。`,
+      `PDFが大きすぎます（${formatMaxPdfSizeLabel()}にしてください）。スキャンPDFは解像度を下げると読み取りやすくなります。`,
     );
   }
 

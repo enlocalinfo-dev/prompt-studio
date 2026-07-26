@@ -2,8 +2,13 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { VercelRequest } from "@vercel/node";
 import { isBlobUploadConfigured } from "./blob-config.js";
 
+import {
+  MAX_ESTIMATE_PDF_BYTES,
+  MAX_ESTIMATE_PDF_MB,
+} from "./pdf-size-limits.js";
+
 /** 見積PDFのクライアント直接アップロード上限（Vercel Blob） */
-export const MAX_BLOB_PDF_BYTES = 20 * 1024 * 1024;
+export const MAX_BLOB_PDF_BYTES = MAX_ESTIMATE_PDF_BYTES;
 
 function requestFromVercel(req: VercelRequest): Request {
   const host =

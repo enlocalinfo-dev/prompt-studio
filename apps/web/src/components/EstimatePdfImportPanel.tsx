@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { postExpandBriefFromPdf } from "../lib/api";
 import { extractTextFromPdf } from "../lib/pdfExtract";
 import { buildExpandBriefRequest, PdfTooLargeError, trimReferencePdfText } from "../lib/expandBriefPayload";
+import { MAX_ESTIMATE_PDF_MB } from "../lib/pdfSizeLimits";
 import { PromptWorkspace } from "./PromptWorkspace";
 import { InlineAlert } from "./InlineAlert";
 import { useToast } from "./Toast";
@@ -223,7 +224,7 @@ export function EstimatePdfImportPanel({
               {lastFile ? `選択中: ${lastFile}` : "PDFをドロップ、またはクリックして選択"}
             </p>
             <p className="mt-2 text-xs text-en-muted">
-              {lastFile ? "クリックで別のPDFに差し替えられます" : "文字付きPDF推奨 · スキャンPDFは約2.8MBまで"}
+              {lastFile ? "クリックで別のPDFに差し替えられます" : `文字付きPDF推奨 · スキャンPDFも最大${MAX_ESTIMATE_PDF_MB}MBまで`}
             </p>
             {phase === "ready" && promptResult && (
               <p className="mt-3 text-xs text-en-primary-bright">作成完了 · {promptResult.folderNameSuggestion}</p>

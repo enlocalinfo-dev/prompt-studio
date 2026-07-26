@@ -22,7 +22,7 @@ pnpm dev
 
 1. Root Directory を **`prompt-studio`** に設定（リポジトリ直下に置く場合）
 2. 環境変数: `ANTHROPIC_API_KEY`（任意）
-3. **大きい見積PDF（スキャン・約3MB超）**: Vercel Dashboard → **Storage** → **Blob** を作成し、本プロジェクトに接続する（`BLOB_READ_WRITE_TOKEN` が自動付与）。未設定の場合、約2.8MB超のスキャンPDFはアップロードできません。接続後は **最大約20MB** まで Blob 経由で読み取れます。
+3. **大きい見積PDF（スキャン）**: Vercel Blob 接続済みなら **最大約32MB**（Claude API の上限に合わせた）。未接続時は約2.8MB超のスキャンPDFは不可。
 4. Deploy
 
 CLI:

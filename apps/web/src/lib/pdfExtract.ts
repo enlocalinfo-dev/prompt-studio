@@ -5,12 +5,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** ブラウザでの全文テキスト抽出は重いので小さめ。超えたらサーバー側PDF解析に任せる */
+const MAX_EXTRACT_LOCAL_BYTES = 12 * 1024 * 1024;
 const MAX_CHARS = 25_000;
 
 export async function extractTextFromPdf(file: File): Promise<string> {
-  if (file.size > MAX_FILE_BYTES) {
-    throw new Error("PDFは10MBまでです");
+  if (file.size > MAX_EXTRACT_LOCAL_BYTES) {
+    return "";
   }
   if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
     throw new Error("PDFファイルを選んでください");
