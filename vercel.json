@@ -8,6 +8,7 @@
     { "source": "/api/fetch-url", "destination": "/api?__path=fetch-url" },
     { "source": "/api/blob-upload", "destination": "/api?__path=blob-upload" },
     { "source": "/api/expand-brief", "destination": "/api?__path=expand-brief" },
+    { "source": "/api/generate", "destination": "/api?__path=generate" },
     { "source": "/api/templates/:formatId", "destination": "/api?__path=templates/:formatId" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
