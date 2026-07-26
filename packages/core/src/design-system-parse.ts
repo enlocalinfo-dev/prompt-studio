@@ -25,9 +25,9 @@ export interface ParsedDesignSystem {
 }
 
 const B_DEFAULT_COLORS: DesignSystemColors = {
-  primary: "#1A5F4A",
-  secondary: "#2D8B6E",
-  accent: "#C45C3E",
+  primary: "#188BA8",
+  secondary: "#0E7ABE",
+  accent: "#E63946",
   textMain: "#111111",
   textSub: "#6B7280",
   background: "#FFFFFF",

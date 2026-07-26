@@ -236,15 +236,23 @@ design_system:
       - "guaranteed ROI claims"
   color_system:
     allowed_colors:
-      primary: "#1A5F4A"
-      secondary: "#2D8B6E"
-      accent: "#C45C3E"
+      primary: "#188BA8"
+      secondary: "#0E7ABE"
+      accent: "#E63946"
       text_main: "#111111"
       text_sub: "#6B7280"
       background: "#FFFFFF"
       background_light: "#F5F7FA"
       surface_card: "#FFFFFF"
       divider_line: "#E5E7EB"
+    cover_gradient:
+      gradient_from: "#188BA8"
+      gradient_to: "#0E7ABE"
+      text_on_cover: "#FFFFFF"
+    strict_rule:
+      - "Use ONLY hex values under allowed_colors and cover_gradient"
+      - "Charts, shapes, icons: only allowed_colors keys"
+      - "Do not change palette by slide number or topic"
   content_rules:
     roi_slide: 6
     net_cost_slide: 7
@@ -267,3 +275,4 @@ design_system:
 |------|------|
 | 2026-07-24 | 骨子初版 |
 | 2026-07-24 | ユーザー確定：サマリー省略・実質負担別スライド・文案維持＋図解必須。`genspark_prompt.md` B標準テンプレ（8枚） |
+| 2026-07-27 | design_system を ENロジカル標準パレット（青 #188BA8 / #0E7ABE、強調 #E63946）に統一 |
