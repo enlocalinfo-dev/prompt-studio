@@ -5,6 +5,7 @@ import { loadMasterTemplate } from "./templates.js";
 import { buildReferenceContext, type ReferenceBundle } from "./reference-context.js";
 import { loadPromptStudioCore } from "./load-core.js";
 import { mergeSlideBriefs } from "./markdown-merge.js";
+import { applyTuningToBody } from "./apply-tuning-b.js";
 import type { TuningB } from "@prompt-studio/core";
 
 type FormatId = "B";
@@ -19,17 +20,55 @@ function templatesLive(): boolean {
   return process.env.TEMPLATES_LIVE !== "false";
 }
 
-function applyTuningToBody(body: string, tuning: TuningB): string {
-  let out = body;
-  out = out.replace(/\*\*2026年7月24日\*\*/g, `**${tuning.documentDate}**`);
-  out = out.replace(/\*\*2026年7月13日\*\*/g, `**${tuning.documentDate}**`);
-  out = out.replace(/2026年7月24日/g, tuning.documentDate);
-  out = out.replace(/2026年7月13日/g, tuning.documentDate);
-  out = out.replace(/株式会社ネクストリンク商事様/g, tuning.clientName);
-  if (tuning.projectTitle) {
-    out = out.replace(/人事AX研修 共同開発のご提案/g, tuning.projectTitle);
+function resolveGensparkText(core: Awaited<ReturnType<typeof loadPromptStudioCore>>, markdown: string, masterTuned: string): string {
+  const fromMd = core.extractGensparkText(markdown);
+  if (fromMd.length >= 800) return fromMd;
+  const fromMaster = core.extractGensparkText(masterTuned);
+  return fromMaster.length > fromMd.length ? fromMaster : fromMd;
+}
+
+async function generateFormatB(
+  core: Awaited<ReturnType<typeof loadPromptStudioCore>>,
+  anthropic: Anthropic | null,
+  structured: import("@prompt-studio/core").Extracted,
+  tuning: TuningB,
+  master: string,
+  transcript: string,
+  referenceContext: string,
+  references?: ReferenceBundle,
+): Promise<{ markdown: string; generationMode: "llm-slides" | "mock"; composeErrors: string[] }> {
+  const composeErrors: string[] = [];
+  let mergedMaster = master;
+  let generationMode: "llm-slides" | "mock" = "mock";
+
+  if (anthropic) {
+    const slideCompose = await composeSlideBriefsWithLlm(
+      anthropic,
+      "B",
+      structured,
+      tuning,
+      master,
+      transcript,
+      referenceContext,
+    );
+    if (slideCompose.error) composeErrors.push(`slides: ${slideCompose.error}`);
+
+    if (slideCompose.briefs.includes("■")) {
+      mergedMaster = mergeSlideBriefs(master, slideCompose.briefs);
+      generationMode = "llm-slides";
+    } else {
+      composeErrors.push("slides: B標準■固稿テンプレを使用（LLM差し替えなし）");
+    }
   }
-  return out;
+
+  const masterTuned = applyTuningToBody(mergedMaster, tuning);
+  const markdown = core.composeMarkdown("B", structured, tuning, masterTuned, references);
+
+  if (!core.extractGensparkText(markdown) && masterTuned.length > 500) {
+    composeErrors.push("genspark-text: ```text ブロックをマスターから復元");
+  }
+
+  return { markdown, generationMode, composeErrors };
 }
 
 export async function runGenerate(body: {
@@ -45,6 +84,10 @@ export async function runGenerate(body: {
   const anthropic = getAnthropic();
   const master = loadMasterTemplate(formatId, devLive);
 
+  if (master.includes("テンプレ未同期") || master.length < 2000) {
+    throw new Error("B標準テンプレが読み込めません。デプロイ設定（service/template-snapshots）を確認してください。");
+  }
+
   const extractResult = await extractStructured(
     anthropic,
     formatId,
@@ -59,27 +102,21 @@ export async function runGenerate(body: {
 
   let markdown = "";
 
-  // B（8枚デリバリー）: 全文再執筆は重く 60s を超えやすいため ■固稿の差し替えのみ LLM 化
-  if (anthropic) {
-    const slideCompose = await composeSlideBriefsWithLlm(
+  if (formatId === "B") {
+    const b = await generateFormatB(
+      core,
       anthropic,
-      formatId,
       structured,
       tuning,
       master,
       transcript ?? "",
       referenceContext,
+      references,
     );
-    if (slideCompose.error) composeErrors.push(`slides: ${slideCompose.error}`);
-
-    if (slideCompose.briefs.length > 200) {
-      const merged = applyTuningToBody(mergeSlideBriefs(master, slideCompose.briefs), tuning);
-      markdown = core.composeMarkdown(formatId, structured, tuning, merged, references);
-      generationMode = "llm-slides";
-    }
-  }
-
-  if (!markdown.trim() && anthropic) {
+    markdown = b.markdown;
+    generationMode = b.generationMode;
+    composeErrors.push(...b.composeErrors);
+  } else if (anthropic) {
     const fullCompose = await composeWithLlm(
       anthropic,
       formatId,
@@ -105,7 +142,7 @@ export async function runGenerate(body: {
     if (fallbackBody.trim().length > 400) {
       markdown = fallbackBody;
       generationMode = "mock";
-      composeErrors.push("llm-fallback: template compose with extracted fields");
+      composeErrors.push("fallback: template compose with extracted fields");
     } else if (anthropic) {
       const hint = composeErrors.length ? composeErrors.join("; ") : "unknown";
       throw new Error(
@@ -120,7 +157,14 @@ export async function runGenerate(body: {
     }
   }
 
-  const gensparkText = core.extractGensparkText(markdown);
+  const gensparkText = resolveGensparkText(core, markdown, applyTuningToBody(master, tuning));
+
+  if (gensparkText.length < 500) {
+    throw new Error(
+      "Genspark用テキスト（```text ブロック）を抽出できませんでした。B標準テンプレが破損している可能性があります。",
+    );
+  }
+
   const title =
     tuning.projectTitle ||
     (structured.formatId === "B" ? structured.trainingName : "協業提案");

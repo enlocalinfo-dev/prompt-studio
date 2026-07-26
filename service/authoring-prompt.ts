@@ -25,6 +25,16 @@ Infer business proposal content; summarize; do not copy the entire transcript in
 Do not invent revenue share % or legal commitments.
 Return ONLY valid JSON matching the schema. No markdown fences. No commentary.`;
 
+export const SLIDE_BRIEFS_SYSTEM_B = `You rewrite only the 【各スライドの確定内容（■固稿）】 section for a **Format B delivery proposal** genspark_prompt.md (8 slides fixed, no section dividers).
+
+Output: consecutive lines starting with ■スライド1 through ■スライド8 (same labels as outline).
+Rules:
+- **Do not shorten** bullet copy; keep リード/サブリード/補足/【図解】 per B standard (文案省略禁止).
+- Slide 6 = ROI time savings only; slide 7 = net cost / subsidy (never merge).
+- Slide 5 must label 申請締切 and 研修開始月 clearly.
+- No emoji. Business Japanese.
+- Output ONLY ■ blocks—no YAML, no lock blocks, no raw transcript paste.`;
+
 export const SLIDE_BRIEFS_SYSTEM = `You rewrite only the 【各スライドの確定内容（■固稿）】 section for a genspark_prompt.md.
 Output format: consecutive lines starting with ■スライド (same slide IDs and section dividers as the outline provided).
 Each slide: bullets with リード/サブリード/カード/補足/【図解】 as appropriate for EN Logical 1.5x density.

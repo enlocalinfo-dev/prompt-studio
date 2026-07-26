@@ -8,6 +8,7 @@ import {
   AUTHORING_SYSTEM,
   EXTRACT_SYSTEM,
   SLIDE_BRIEFS_SYSTEM,
+  SLIDE_BRIEFS_SYSTEM_B,
 } from "./authoring-prompt.js";
 import {
   extractSlideBriefSection,
@@ -142,7 +143,12 @@ ${exampleSection}
 Output ONLY the ■ slide brief blocks for this case (no section header line).`;
 
   try {
-    const briefs = await createText(client, SLIDE_BRIEFS_SYSTEM, user, 8192);
+    const briefs = await createText(
+      client,
+      formatId === "B" ? SLIDE_BRIEFS_SYSTEM_B : SLIDE_BRIEFS_SYSTEM,
+      user,
+      8192,
+    );
     if (!briefs.includes("■")) {
       throw new Error("Slide briefs missing ■ markers");
     }

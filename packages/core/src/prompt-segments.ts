@@ -111,6 +111,26 @@ export function parseGensparkPrompt(markdown: string): PromptSegment[] {
     });
   }
 
+  if (!segments.some((s) => s.kind === "yaml")) {
+    const inlineYaml = text.match(
+      /【デザイン制約（YAML）】[\s\S]*?\n(design_system:[\s\S]*?)(?=\n```|\n━━━━━━━━|$)/,
+    );
+    if (inlineYaml?.[1]?.trim()) {
+      const body = inlineYaml[1].trim();
+      segments.push({
+        id: `yaml-${idx++}`,
+        label: "design_system（YAML）",
+        kind: "yaml",
+        body,
+        purpose:
+          "Genspark text 内の design_system 定義です。コピー時はスライド■固稿とセットで渡してください。",
+        mandatory: true,
+        previewTitle: "YAML ルールセット",
+        previewLines: body.split("\n").slice(0, 8),
+      });
+    }
+  }
+
   const firstSlide = text.search(/^■/m);
   const preamble = firstSlide > 0 ? text.slice(0, firstSlide).trim() : "";
   if (preamble.length > 80) {
