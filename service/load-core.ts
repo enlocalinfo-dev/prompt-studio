@@ -6,14 +6,9 @@ import { pathToFileURL } from "node:url";
 function repoRoots(): string[] {
   const cwd = process.cwd();
   const roots = [cwd, path.resolve(cwd, ".."), path.resolve(cwd, "../..")];
-  // ローカル dev（service/ から tsx 実行）用。Vercel CJS バンドルでは import.meta が使えない
-  try {
-    // @ts-expect-error __dirname は CJS 実行時のみ
-    if (typeof __dirname === "string") {
-      roots.push(__dirname, path.resolve(__dirname, "../.."));
-    }
-  } catch {
-    /* ignore */
+  const du = (globalThis as { __dirname?: string }).__dirname;
+  if (typeof du === "string") {
+    roots.push(du, path.resolve(du, "../.."));
   }
   return [...new Set(roots)];
 }

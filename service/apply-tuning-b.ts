@@ -27,7 +27,7 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
   );
 
   if (tuning.proposerName?.trim()) {
-    out = out.replace(/提案元：**株式会社ENロジカル**/g, `提案元：**${tuning.proposerName}**`);
+    out = out.replace(/提案元：\*\*株式会社ENロジカル\*\*/g, `提案元：**${tuning.proposerName}**`);
     out = out.replace(/proposer: "株式会社ENロジカル"/g, `proposer: "${tuning.proposerName.replace(/"/g, '\\"')}"`);
   }
 
