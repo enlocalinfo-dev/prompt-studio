@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptSegment } from "@prompt-studio/core";
+import { parseDesignSystemFromGenspark, parseDesignSystemYaml } from "@prompt-studio/core";
 import { SlidePreviewMock } from "./SlidePreviewMock";
+import { DesignSystemSlidePreview } from "./DesignSystemSlidePreview";
 
 export function PromptWorkspace({
   segments,
@@ -17,6 +19,16 @@ export function PromptWorkspace({
     () => segments.find((s) => s.id === activeId) ?? segments[0],
     [activeId, segments],
   );
+
+  const designParsed = useMemo(
+    () => parseDesignSystemFromGenspark(gensparkText),
+    [gensparkText],
+  );
+
+  const activeDesign = useMemo(() => {
+    if (active?.kind !== "yaml") return designParsed;
+    return parseDesignSystemYaml(active.body);
+  }, [active, designParsed]);
 
   if (!active) return null;
 
@@ -88,13 +100,24 @@ export function PromptWorkspace({
             </div>
 
             <div className="flex min-h-[280px] flex-col p-4 md:p-5">
-              <span className="mb-3 text-xs font-semibold text-en-text">スライド／ルールの見え方</span>
-              <SlidePreviewMock
-                title={active.previewTitle ?? active.label}
-                lines={active.previewLines ?? []}
-                kind={active.kind}
-                slideLabel={active.label}
-              />
+              <span className="mb-3 text-xs font-semibold text-en-text">
+                {active.kind === "yaml" ? "スライド見た目の予測（YAML反映）" : "スライド／ルールの見え方"}
+              </span>
+              {active.kind === "yaml" ? (
+                <DesignSystemSlidePreview
+                  parsed={activeDesign}
+                  gensparkText={gensparkText}
+                  yamlBody={active.body}
+                />
+              ) : (
+                <SlidePreviewMock
+                  title={active.previewTitle ?? active.label}
+                  lines={active.previewLines ?? []}
+                  kind={active.kind}
+                  slideLabel={active.label}
+                  designColors={designParsed.colors}
+                />
+              )}
             </div>
           </div>
         </motion.div>

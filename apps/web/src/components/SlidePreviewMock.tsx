@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import type { PromptSegmentKind } from "@prompt-studio/core";
+import type { DesignSystemColors, PromptSegmentKind } from "@prompt-studio/core";
 
 const kindLabel: Record<PromptSegmentKind, string> = {
   yaml: "YAML",
@@ -15,14 +15,22 @@ export function SlidePreviewMock({
   lines,
   kind,
   slideLabel,
+  designColors,
 }: {
   title: string;
   lines: string[];
   kind: PromptSegmentKind;
   slideLabel?: string;
+  designColors?: DesignSystemColors;
 }) {
   const isYaml = kind === "yaml";
   const isRule = kind === "global_rule" || kind === "preamble";
+  const accent = designColors?.primary ?? undefined;
+  const accentBar =
+    accent != null
+      ? { backgroundColor: accent }
+      : undefined;
+  const headingStyle = accent != null ? { color: accent } : undefined;
 
   return (
     <motion.div
@@ -38,14 +46,9 @@ export function SlidePreviewMock({
 
       <div className="relative flex flex-1 flex-col p-4 md:p-5">
         {isYaml ? (
-          <div className="space-y-1 font-mono text-[10px] leading-relaxed text-en-primary-bright/90">
-            {lines.map((l, i) => (
-              <div key={i} className="truncate">
-                {l}
-              </div>
-            ))}
-            <p className="pt-2 text-[10px] text-en-muted">… density_quota / tone_and_manner 等</p>
-          </div>
+          <p className="text-[11px] text-en-muted">
+            右側に YAML から読み取ったカラー・表紙／本文のミニプレビューを表示します。
+          </p>
         ) : isRule ? (
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-en-text">{title}</h3>
@@ -60,8 +63,10 @@ export function SlidePreviewMock({
           </div>
         ) : (
           <>
-            <div className="mb-3 h-1 w-12 rounded-full bg-gradient-to-r from-en-primary to-en-secondary" />
-            <h3 className="text-base font-semibold leading-snug text-en-text md:text-lg">{title}</h3>
+            <div className="mb-3 h-1 w-12 rounded-full bg-gradient-to-r from-en-primary to-en-secondary" style={accentBar} />
+            <h3 className="text-base font-semibold leading-snug text-en-text md:text-lg" style={headingStyle}>
+              {title}
+            </h3>
             <ul className="mt-3 flex-1 space-y-2 overflow-hidden">
               {lines.map((l, i) => (
                 <motion.li

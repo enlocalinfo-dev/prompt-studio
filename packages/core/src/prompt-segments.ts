@@ -104,7 +104,7 @@ export function parseGensparkPrompt(markdown: string): PromptSegment[] {
       kind: "yaml",
       body,
       purpose:
-        "デザインシステム・density_quota・generation_constraints など、ルールベースの機械可読定義です。スライド■固稿とセットで必ず Genspark に渡し、改変しないでください。",
+        "デザインシステム・density_quota・generation_constraints など、ルールベースの機械可読定義です。右のプレビューでカラーと見出しイメージを確認できます。",
       mandatory: true,
       previewTitle: "YAML ルールセット",
       previewLines: body.split("\n").slice(0, 8),
@@ -121,12 +121,12 @@ export function parseGensparkPrompt(markdown: string): PromptSegment[] {
         id: `yaml-${idx++}`,
         label: "design_system（YAML）",
         kind: "yaml",
-        body,
-        purpose:
-          "Genspark text 内の design_system 定義です。コピー時はスライド■固稿とセットで渡してください。",
-        mandatory: true,
-        previewTitle: "YAML ルールセット",
-        previewLines: body.split("\n").slice(0, 8),
+      body,
+      purpose:
+        "デザインシステム（カラー・トーン・枚数制約）です。右のプレビューで表紙／本文の雰囲気を確認できます。コピー時はスライド■固稿とセットで Genspark に渡してください。",
+      mandatory: true,
+      previewTitle: "design_system",
+      previewLines: body.split("\n").slice(0, 12),
       });
     }
   }
