@@ -1,4 +1,4 @@
-import { isBlobUploadConfigured } from "./blob-upload-route.js";
+import { isBlobUploadConfigured } from "./blob-config.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { composeSlideBriefsWithLlm, composeWithLlm, extractStructured } from "./llm.js";
 import { loadMasterTemplate } from "./templates.js";

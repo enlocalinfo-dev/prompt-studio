@@ -1,15 +1,9 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { VercelRequest } from "@vercel/node";
+import { isBlobUploadConfigured } from "./blob-config.js";
 
 /** 見積PDFのクライアント直接アップロード上限（Vercel Blob） */
 export const MAX_BLOB_PDF_BYTES = 20 * 1024 * 1024;
-
-/** Vercel 本番（OIDC）またはローカル／フォールバック（READ_WRITE_TOKEN） */
-export function isBlobUploadConfigured(): boolean {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return true;
-  if (process.env.BLOB_STORE_ID && process.env.VERCEL === "1") return true;
-  return false;
-}
 
 function requestFromVercel(req: VercelRequest): Request {
   const host =
