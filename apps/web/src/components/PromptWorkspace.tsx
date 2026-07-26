@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptSegment } from "@prompt-studio/core";
-import { parseDesignSystemFromGenspark, parseDesignSystemYaml } from "@prompt-studio/core";
+import {
+  parseDesignSystemFromGenspark,
+  parseDesignSystemYaml,
+  parseSlideOutlinesFromGenspark,
+} from "@prompt-studio/core";
 import { SlidePreviewMock } from "./SlidePreviewMock";
 import { DesignSystemSlidePreview } from "./DesignSystemSlidePreview";
+import { SlideOutlinePanel } from "./SlideOutlinePanel";
 
 export function PromptWorkspace({
   segments,
@@ -22,6 +27,11 @@ export function PromptWorkspace({
 
   const designParsed = useMemo(
     () => parseDesignSystemFromGenspark(gensparkText),
+    [gensparkText],
+  );
+
+  const slideOutline = useMemo(
+    () => parseSlideOutlinesFromGenspark(gensparkText),
     [gensparkText],
   );
 
@@ -68,18 +78,26 @@ export function PromptWorkspace({
           transition={{ duration: 0.22 }}
           className="glass-panel overflow-hidden rounded-2xl"
         >
-          <div className="border-b border-en-border bg-en-deep/50 px-4 py-4 md:px-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-en-accent">
-              このパートの定義
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-en-text md:text-[15px]">
-              {active.purpose}
-            </p>
-            {active.mandatory && (
-              <p className="mt-2 text-[11px] text-en-muted">
-                YAML・共通ルールはスライド■固稿とセットで Genspark に引き継ぎます（改変禁止）。
+          <div className="border-b border-en-border bg-en-deep/50 px-4 py-4 md:grid md:grid-cols-2 md:gap-6 md:px-5 md:py-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-en-accent">
+                このパートの定義
               </p>
-            )}
+              <p className="mt-2 text-sm leading-relaxed text-en-text md:text-[15px]">
+                {active.purpose}
+              </p>
+              {active.mandatory && (
+                <p className="mt-2 text-[11px] text-en-muted">
+                  YAML・共通ルールはスライド■固稿とセットで Genspark に引き継ぎます（改変禁止）。
+                </p>
+              )}
+            </div>
+            <div className="mt-4 md:mt-0">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-en-accent">
+                8枚サマリー（見出し）
+              </p>
+              <SlideOutlinePanel slides={slideOutline} variant="compact" />
+            </div>
           </div>
 
           <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-en-border">
@@ -118,6 +136,7 @@ export function PromptWorkspace({
                   designColors={designParsed.colors}
                 />
               )}
+              <SlideOutlinePanel slides={slideOutline} variant="full" />
             </div>
           </div>
         </motion.div>
