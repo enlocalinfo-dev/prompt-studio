@@ -1,12 +1,21 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 function repoRoots(): string[] {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const fromApiLib = path.resolve(here, "../..");
-  return [...new Set([process.cwd(), fromApiLib, path.resolve(process.cwd(), "..")])];
+  const cwd = process.cwd();
+  const roots = [cwd, path.resolve(cwd, ".."), path.resolve(cwd, "../..")];
+  // ローカル dev（service/ から tsx 実行）用。Vercel CJS バンドルでは import.meta が使えない
+  try {
+    // @ts-expect-error __dirname は CJS 実行時のみ
+    if (typeof __dirname === "string") {
+      roots.push(__dirname, path.resolve(__dirname, "../.."));
+    }
+  } catch {
+    /* ignore */
+  }
+  return [...new Set(roots)];
 }
 
 function resolveCoreEntry(): { path: string; kind: "cjs" | "esm" } | null {
