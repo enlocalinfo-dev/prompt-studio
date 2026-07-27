@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptSegment } from "@prompt-studio/core";
 import {
   parseDesignSystemFromGenspark,
   parseSlideOutlinesFromGenspark,
 } from "@prompt-studio/core";
-import { AllSlidesAppearanceGrid } from "./AllSlidesAppearanceGrid";
+import { SlideDeckContentViewer } from "./SlideDeckContentViewer";
 import { SlideOutlinePanel } from "./SlideOutlinePanel";
 
 function slideNumberFromSegment(seg: PromptSegment): number | undefined {
@@ -24,6 +24,7 @@ export function PromptWorkspace({
   onCopySegment: (text: string) => void;
 }) {
   const [activeId, setActiveId] = useState(segments[0]?.id ?? "");
+  const [deckSlide, setDeckSlide] = useState<number | undefined>(undefined);
   const active = useMemo(
     () => segments.find((s) => s.id === activeId) ?? segments[0],
     [activeId, segments],
@@ -39,7 +40,12 @@ export function PromptWorkspace({
     [gensparkText],
   );
 
-  const highlightSlide = active ? slideNumberFromSegment(active) : undefined;
+  const highlightSlide = deckSlide ?? (active ? slideNumberFromSegment(active) : undefined);
+
+  useEffect(() => {
+    const fromSeg = active ? slideNumberFromSegment(active) : undefined;
+    if (fromSeg != null) setDeckSlide(fromSeg);
+  }, [active]);
 
   if (!active) return null;
 
@@ -109,13 +115,19 @@ export function PromptWorkspace({
             </div>
 
             <div className="flex min-h-[360px] flex-col p-4 md:p-6 xl:min-h-[520px]">
-              <span className="mb-3 text-xs font-semibold text-en-text">スライド見た目の予測（全枚）</span>
-              <AllSlidesAppearanceGrid
+              <span className="mb-3 text-xs font-semibold text-en-text">スライド内容プレビュー（全枚）</span>
+              <SlideDeckContentViewer
                 parsed={designParsed}
                 slides={slideOutline}
-                highlightSlideNumber={highlightSlide}
+                activeSlideNumber={highlightSlide}
+                onActiveSlideChange={setDeckSlide}
               />
-              <SlideOutlinePanel slides={slideOutline} />
+              <details className="mt-4 rounded-xl border border-en-border/60 bg-en-deep/20 p-3">
+                <summary className="cursor-pointer text-[11px] font-medium text-en-text">
+                  全{slideOutline.length || "—"}枚のテキスト一覧
+                </summary>
+                <SlideOutlinePanel slides={slideOutline} />
+              </details>
             </div>
           </div>
         </motion.div>

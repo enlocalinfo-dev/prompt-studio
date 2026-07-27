@@ -9,6 +9,8 @@ export interface SlideOutlineItem {
   headline: string;
   /** 補助1行（リード or サブリード） */
   subline?: string;
+  /** ■固稿から抽出した箇条書き（プレビュー用） */
+  bullets: string[];
 }
 
 function bulletValue(block: string, prefixes: string[]): string | undefined {
@@ -25,6 +27,20 @@ function bulletValue(block: string, prefixes: string[]): string | undefined {
   return undefined;
 }
 
+function extractBullets(block: string, max = 8): string[] {
+  const bullets: string[] = [];
+  for (const line of block.split("\n")) {
+    const t = line.trim();
+    if (!t.startsWith("-")) continue;
+    let body = t.replace(/^-\s*/, "").trim();
+    if (!body || body.startsWith("【図解")) continue;
+    if (body.length > 160) body = `${body.slice(0, 160)}…`;
+    bullets.push(body);
+    if (bullets.length >= max) break;
+  }
+  return bullets;
+}
+
 function firstBullet(block: string): string | undefined {
   for (const line of block.split("\n")) {
     const t = line.trim();
@@ -38,6 +54,30 @@ function firstBullet(block: string): string | undefined {
 function parseSlideNumber(labelLine: string): number {
   const m = labelLine.match(/スライド\s*(\d+)/i) ?? labelLine.match(/^■\s*(\d+)/);
   return m?.[1] ? Number.parseInt(m[1], 10) : 0;
+}
+
+/** プレビュー用：不足分はプレースホルダー箇条書きで補う */
+export function slidePreviewBulletLines(item: SlideOutlineItem): string[] {
+  const fromBrief = item.bullets.filter((b) => b.length > 0 && !b.startsWith("【"));
+  const seed = [item.headline, item.subline, ...fromBrief].filter(
+    (s): s is string => Boolean(s?.trim()),
+  );
+  const uniq = [...new Set(seed.map((s) => s.trim()))];
+  const headline = item.headline?.trim();
+  const sub = item.subline?.trim();
+
+  const placeholders = [
+    "ここに、このスライド向けの箇条書きが追加されていきます",
+    "見積・入力を反映すると内容が具体化されます",
+    "Genspark 実行後に図解・レイアウトが載ります",
+  ];
+
+  const out = uniq.filter((line) => line !== headline && line !== sub);
+  for (const p of placeholders) {
+    if (out.length >= 5) break;
+    if (!out.some((x) => x.includes(p.slice(0, 8)))) out.push(p);
+  }
+  return out.slice(0, 6);
 }
 
 export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutlineItem[] {
@@ -69,6 +109,7 @@ export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutli
       sectionLabel: headLine,
       headline,
       subline,
+      bullets: extractBullets(body),
     });
   }
 
