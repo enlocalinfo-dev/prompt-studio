@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="block truncate text-[15px] font-semibold tracking-tight text-en-text">
                 提案プロンプト作成
               </span>
-              <span className="block truncate text-xs text-en-muted">見積PDF → Genspark 用の指示文</span>
+              <span className="block truncate text-xs text-en-muted">見積PDF · 議事録 → Genspark</span>
             </div>
           </Link>
 
@@ -46,6 +46,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 />
               )}
               <span className="relative">トップ</span>
+            </Link>
+            <Link
+              to="/meeting"
+              className={`relative rounded-xl px-3 py-2 text-sm ${loc.pathname.startsWith("/meeting") ? "text-en-text" : "text-en-muted hover:text-en-text"}`}
+            >
+              {loc.pathname.startsWith("/meeting") && (
+                <motion.span
+                  layoutId="nav-meeting"
+                  className="absolute inset-0 rounded-xl bg-white/8 ring-1 ring-white/5"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative hidden sm:inline">議事録</span>
+              <span className="relative sm:hidden">議事録</span>
             </Link>
             <Link
               to="/create"
@@ -96,7 +110,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main
         className={`relative mx-auto px-4 py-10 md:px-6 md:py-14 ${
-          loc.pathname === "/prompt" ? "max-w-[min(100%,90rem)]" : "max-w-6xl"
+          loc.pathname === "/prompt" || loc.pathname.startsWith("/rules/")
+            ? "max-w-[min(100%,90rem)]"
+            : "max-w-6xl"
         }`}
       >
         {children}

@@ -82,6 +82,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (head === "propose-from-meeting") {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "method not allowed" });
+        return;
+      }
+      const { minutes } = req.body as { minutes?: string };
+      const { runProposeFromMeeting } = await import("../service/propose-from-meeting.js");
+      const result = await runProposeFromMeeting({ minutes: minutes ?? "" });
+      res.status(200).json(result);
+      return;
+    }
+
+    if (head === "revise-prompt-rules") {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "method not allowed" });
+        return;
+      }
+      const { contentPolicy, designYaml, behaviorRules, instruction } = req.body as {
+        contentPolicy?: string;
+        designYaml?: string;
+        behaviorRules?: string;
+        instruction?: string;
+      };
+      if (!contentPolicy || !designYaml || !behaviorRules || !instruction?.trim()) {
+        res.status(400).json({ error: "contentPolicy, designYaml, behaviorRules, instruction required" });
+        return;
+      }
+      const { runRevisePromptRules } = await import("../service/revise-prompt-rules.js");
+      const result = await runRevisePromptRules({
+        contentPolicy,
+        designYaml,
+        behaviorRules,
+        instruction,
+      });
+      res.status(200).json({ rules: result.rules, usedLlm: result.usedLlm, error: result.error });
+      return;
+    }
+
     if (head === "revise-prompt") {
       if (req.method !== "POST") {
         res.status(405).json({ error: "method not allowed" });

@@ -1,4 +1,5 @@
 import { extractGensparkText } from "./engine.js";
+import { applySlideRoleOrderToGensparkText } from "./slide-order-b.js";
 import type { TuningB } from "./formats.js";
 
 /** ユーザーが上書きする3区分（B形式・Genspark text 内） */
@@ -9,6 +10,8 @@ export interface PromptRuleOverridesB {
   designYaml?: string;
   /** 非AI・イラスト・トーン・最優先ルールなど「どう見せるか／禁止事項」 */
   behaviorRules?: string;
+  /** B形式：スライド roleId（1=表紙…8=次の一手）の出力順 */
+  slideRoleOrder?: number[];
 }
 
 export interface PromptRuleDefaultsB {
@@ -102,8 +105,17 @@ function swapIllustrationBlock(behavior: string, emphasis: boolean): string {
 
 function applyNetCostSlidePolicy(text: string, tuning: TuningB): string {
   if (tuning.netCostSlide) return text;
-  let out = text.replace(/■スライド7｜[\s\S]*?(?=■スライド8｜)/, "");
+  let out = text.replace(/■スライド\d+｜[^\n]*実質負担[\s\S]*?(?=■スライド\d+｜|$)/, "");
   out = out.replace(/■スライド8｜/, "■スライド7｜");
+  const chunks = out.split(/(?=■スライド\d+｜)/);
+  let idx = 0;
+  out = chunks
+    .map((c) => {
+      if (!/^■スライド\d+｜/.test(c)) return c;
+      idx += 1;
+      return c.replace(/^■スライド\d+｜/, `■スライド${idx}｜`);
+    })
+    .join("");
   out = out.replace(/\*\*8枚固定\*\*/g, "**7枚固定**");
   out = out.replace(/全8枚固定/g, "全7枚固定");
   out = out.replace(/順序：\*\*1→2→3→4→5→6→7→8\*\*/g, "順序：**1→2→3→4→5→6→7**");
@@ -139,6 +151,8 @@ export function applyPromptRulesToGensparkText(
   if (overrides?.designYaml?.trim()) {
     inner = replaceDesignYaml(inner, overrides.designYaml.trim());
   }
+
+  inner = applySlideRoleOrderToGensparkText(inner, overrides?.slideRoleOrder, tuning);
 
   inner = applyNetCostSlidePolicy(inner, tuning);
   return inner;

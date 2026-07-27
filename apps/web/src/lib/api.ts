@@ -86,6 +86,43 @@ export async function fetchHealth(): Promise<{ ok: boolean; llm: boolean }> {
   return res.json();
 }
 
+export async function postProposeFromMeeting(body: {
+  minutes: string;
+}): Promise<{
+  proposal: import("@prompt-studio/core").MeetingDocumentProposal;
+  usedLlm: boolean;
+  error?: string;
+}> {
+  const res = await fetch("/api/propose-from-meeting", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : (data.error ?? `HTTP ${res.status}`));
+  }
+  return data;
+}
+
+export async function postRevisePromptRules(body: {
+  contentPolicy: string;
+  designYaml: string;
+  behaviorRules: string;
+  instruction: string;
+}): Promise<{ rules: Required<import("@prompt-studio/core").PromptRuleDefaultsB>; usedLlm: boolean; error?: string }> {
+  const res = await fetch("/api/revise-prompt-rules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : (data.error ?? `HTTP ${res.status}`));
+  }
+  return data;
+}
+
 export async function postRevisePrompt(body: {
   gensparkText: string;
   markdown: string;

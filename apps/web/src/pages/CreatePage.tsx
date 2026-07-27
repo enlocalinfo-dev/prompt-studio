@@ -39,7 +39,7 @@ import {
   saveTuningB,
 } from "../lib/storage";
 import { navigateToPromptDetail } from "../lib/promptNavigation";
-import { formatIdFromCreateSlug } from "../lib/proposalFormats";
+import { formatIdFromCreateSlug, formatRulesPath, getFormatByCreateSlug } from "../lib/proposalFormats";
 import { loadPromptRuleOverrides } from "../lib/promptRuleStorage";
 
 const FORMAT_ID = "B" as const;
@@ -62,7 +62,8 @@ export function CreatePage() {
   const { pushSuccess, pushError } = useToast();
 
   const formatSlug = formatParam?.toLowerCase();
-  const showTrainingDeliveryFlow = formatSlug === "b";
+  const activeFormat = formatSlug ? getFormatByCreateSlug(formatSlug) : undefined;
+  const showTrainingDeliveryFlow = activeFormat?.engine === "b";
   const history = loadHistory();
 
   const [extraNotes, setExtraNotes] = useState(() => loadExtraNotes());
@@ -166,7 +167,9 @@ export function CreatePage() {
         transcript,
         tuning: input.tuning,
         references: input.references,
-        ruleOverrides: loadPromptRuleOverrides(formatIdFromCreateSlug(formatSlug ?? "b") ?? "training-delivery"),
+        ruleOverrides: loadPromptRuleOverrides(
+          formatIdFromCreateSlug(formatSlug ?? "b") ?? "training-delivery",
+        ),
       });
       const inline: InlinePromptResult = {
         markdown: result.markdown,
@@ -303,29 +306,59 @@ export function CreatePage() {
 
   const showSticky = Boolean(inlinePrompt?.gensparkText || inlinePrompt?.markdown);
 
-  if (!showTrainingDeliveryFlow) {
+  if (!formatSlug) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
         <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
           ← トップ
         </Button>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">作成する資料を選ぶ</h1>
         <p className="mt-2 max-w-xl text-sm text-en-muted">
-          カードを選ぶと、見積PDFをドロップする画面に進みます。
+          カードを選ぶと、見積PDFをドロップする画面に進みます。＋から種類を追加できます。
         </p>
         <div className="mt-8">
           <ProposalFormatCards compact />
         </div>
         <p className="mt-6 text-center text-sm">
-          <Link to="/rules/b" className="text-en-primary-bright hover:underline">
-            先にプロンプトルール（8枚のロジック・YAML）を確認・編集する
+          <Link to="/rules" className="text-en-primary-bright hover:underline">
+            プロンプトルール（資料の種類ごと）を編集
           </Link>
         </p>
         <RecentCasesList items={history} className="mt-10" />
+      </motion.div>
+    );
+  }
+
+  if (!activeFormat) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-8 text-center">
+        <p className="text-sm text-en-muted">この資料種別は見つかりませんでした。</p>
+        <Button className="mt-4" onClick={() => nav("/create")}>
+          種類を選び直す
+        </Button>
+      </motion.div>
+    );
+  }
+
+  if (!showTrainingDeliveryFlow) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-8">
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create")}>
+          ← 資料の種類を選び直す
+        </Button>
+        <h1 className="mt-4 text-xl font-semibold text-en-text">{activeFormat.title}</h1>
+        <p className="mt-3 text-sm text-en-muted">
+          この資料種別は、いまは<strong className="text-en-text">プロンプトルールの編集</strong>
+          のみ利用できます。PDFからの自動作成を使う場合は、追加時に「見積PDFで作成」をオンにするか、研修の提案書（B）をご利用ください。
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            to={formatRulesPath(activeFormat.rulesSlug)}
+            className="inline-flex rounded-xl bg-en-primary/90 px-4 py-2.5 text-sm font-medium text-en-on-primary"
+          >
+            プロンプトルールを編集
+          </Link>
+        </div>
       </motion.div>
     );
   }
@@ -346,7 +379,7 @@ export function CreatePage() {
         </Button>
 
         <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <h1 className="text-xl font-semibold text-en-text md:text-2xl">研修の提案書</h1>
+          <h1 className="text-xl font-semibold text-en-text md:text-2xl">{activeFormat?.title ?? "資料"}</h1>
           <span className="rounded-md bg-en-primary/15 px-2 py-0.5 text-[10px] font-semibold text-en-primary-bright">
             見積PDF → 全8枚
           </span>

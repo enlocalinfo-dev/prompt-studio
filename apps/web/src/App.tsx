@@ -5,6 +5,7 @@ import { ToastProvider } from "./components/Toast";
 import { CreatePage } from "./pages/CreatePage";
 import { HomePage } from "./pages/HomePage";
 import { ResultPage } from "./pages/ResultPage";
+import { MeetingMinutesPage } from "./pages/MeetingMinutesPage";
 import { PromptRulesPage } from "./pages/PromptRulesPage";
 
 function AnimatedRoutes() {
@@ -23,6 +24,7 @@ function AnimatedRoutes() {
           <Route path="/create" element={<CreatePage />} />
           <Route path="/create/:formatId" element={<CreatePage />} />
           <Route path="/prompt" element={<ResultPage />} />
+          <Route path="/meeting" element={<MeetingMinutesPage />} />
           <Route path="/rules" element={<PromptRulesPage />} />
           <Route path="/rules/:formatSlug" element={<PromptRulesPage />} />
           <Route path="/result" element={<Navigate to="/prompt" replace />} />

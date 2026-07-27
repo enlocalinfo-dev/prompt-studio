@@ -26,12 +26,29 @@ export function HomePage() {
           を作成
         </h1>
         <p className="mt-5 max-w-2xl text-sm leading-relaxed text-en-muted md:text-base">
-          種類を選んでから見積PDFを読み込むだけで、Genspark に貼り付ける指示文が完成します。まずは作りたい資料のカードを選んでください。
+          見積PDFから作成するか、議事録を起点に資料案を立てるか、どちらからでも Genspark 用の指示文を作成できます。
         </p>
       </motion.section>
 
+      <section className="mb-10">
+        <Link
+          to="/meeting"
+          className="group block rounded-2xl border border-en-secondary/35 bg-gradient-to-br from-en-secondary/12 to-en-primary/8 p-5 transition-colors hover:border-en-secondary/55 md:p-6"
+        >
+          <p className="text-xs font-semibold text-en-accent">議事録モード</p>
+          <h2 className="mt-1 text-lg font-semibold text-en-text group-hover:text-en-primary-bright">
+            議事録から提案資料の方針を作成
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-en-muted">
+            議事録を貼り付けると「こういう資料を作りましょう」と AI が提案します。内容を確認したうえで、プロンプトを生成できます。
+          </p>
+          <span className="mt-4 inline-block text-sm font-medium text-en-primary-bright">はじめる →</span>
+        </Link>
+      </section>
+
       <section>
-        <h2 className="mb-4 text-sm font-semibold text-en-text">作成する資料の種類</h2>
+        <h2 className="mb-1 text-sm font-semibold text-en-text">見積PDFから作成</h2>
+        <p className="mb-4 text-xs text-en-muted">資料の種類を選んでから見積PDFを読み込みます。</p>
         <ProposalFormatCards />
       </section>
 

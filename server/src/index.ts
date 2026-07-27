@@ -99,6 +99,44 @@ app.post("/api/expand-brief", async (req, res) => {
   }
 });
 
+app.post("/api/propose-from-meeting", async (req, res) => {
+  try {
+    const { minutes } = req.body as { minutes?: string };
+    const { runProposeFromMeeting } = await import("../../service/propose-from-meeting.js");
+    const result = await runProposeFromMeeting({ minutes: minutes ?? "" });
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e instanceof Error ? e.message : "propose failed" });
+  }
+});
+
+app.post("/api/revise-prompt-rules", async (req, res) => {
+  try {
+    const { contentPolicy, designYaml, behaviorRules, instruction } = req.body as {
+      contentPolicy?: string;
+      designYaml?: string;
+      behaviorRules?: string;
+      instruction?: string;
+    };
+    if (!contentPolicy || !designYaml || !behaviorRules || !instruction?.trim()) {
+      res.status(400).json({ error: "contentPolicy, designYaml, behaviorRules, instruction required" });
+      return;
+    }
+    const { runRevisePromptRules } = await import("../../service/revise-prompt-rules.js");
+    const result = await runRevisePromptRules({
+      contentPolicy,
+      designYaml,
+      behaviorRules,
+      instruction,
+    });
+    res.json({ rules: result.rules, usedLlm: result.usedLlm, error: result.error });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e instanceof Error ? e.message : "revise rules failed" });
+  }
+});
+
 app.post("/api/revise-prompt", async (req, res) => {
   try {
     const { gensparkText, markdown, instruction, tuning, focusLabel } = req.body as {

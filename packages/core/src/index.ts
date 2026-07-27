@@ -8,3 +8,5 @@ export * from "./estimate-from-pdf.js";
 export * from "./design-system-parse.js";
 export * from "./slide-outline.js";
 export * from "./prompt-rules-b.js";
+export * from "./meeting-proposal.js";
+export * from "./slide-order-b.js";

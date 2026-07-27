@@ -1,17 +1,18 @@
 import type { PromptRuleDefaultsB, PromptRuleOverridesB } from "@prompt-studio/core";
-import type { ProposalFormatId } from "./proposalFormats";
+import { defaultBSlideRoleOrder, normalizeBSlideRoleOrder } from "@prompt-studio/core";
+import type { TuningB } from "@prompt-studio/core";
 
 const LEGACY_KEY_B = "prompt-studio-rule-overrides-B";
 
-function overridesKey(formatId: ProposalFormatId): string {
+function overridesKey(formatId: string): string {
   return `prompt-studio-rule-overrides-${formatId}`;
 }
 
-function fingerprintKey(formatId: ProposalFormatId): string {
+function fingerprintKey(formatId: string): string {
   return `prompt-studio-rule-defaults-hash-${formatId}`;
 }
 
-function migrateLegacyBIfNeeded(formatId: ProposalFormatId): void {
+function migrateLegacyBIfNeeded(formatId: string): void {
   if (formatId !== "training-delivery") return;
   const key = overridesKey(formatId);
   if (localStorage.getItem(key)) return;
@@ -21,7 +22,7 @@ function migrateLegacyBIfNeeded(formatId: ProposalFormatId): void {
   }
 }
 
-export function loadPromptRuleOverrides(formatId: ProposalFormatId = "training-delivery"): PromptRuleOverridesB {
+export function loadPromptRuleOverrides(formatId: string = "training-delivery"): PromptRuleOverridesB {
   migrateLegacyBIfNeeded(formatId);
   try {
     const raw = localStorage.getItem(overridesKey(formatId));
@@ -32,39 +33,41 @@ export function loadPromptRuleOverrides(formatId: ProposalFormatId = "training-d
   return {};
 }
 
-export function savePromptRuleOverrides(
-  overrides: PromptRuleOverridesB,
-  formatId: ProposalFormatId = "training-delivery",
-): void {
+export function savePromptRuleOverrides(overrides: PromptRuleOverridesB, formatId: string = "training-delivery"): void {
   localStorage.setItem(overridesKey(formatId), JSON.stringify(overrides));
 }
 
-export function rememberDefaultsFingerprint(
-  defaults: PromptRuleDefaultsB,
-  formatId: ProposalFormatId = "training-delivery",
-): void {
+export function rememberDefaultsFingerprint(defaults: PromptRuleDefaultsB, formatId: string): void {
   const fp = `${defaults.contentPolicy.length}:${defaults.designYaml.length}:${defaults.behaviorRules.length}`;
   localStorage.setItem(fingerprintKey(formatId), fp);
 }
 
-export function clearPromptRuleOverrides(formatId: ProposalFormatId = "training-delivery"): void {
+export function clearPromptRuleOverrides(formatId: string): void {
   localStorage.removeItem(overridesKey(formatId));
 }
 
 export function mergeOverridesWithDefaults(
   defaults: PromptRuleDefaultsB,
   stored: PromptRuleOverridesB,
-): Required<PromptRuleOverridesB> {
+): Required<PromptRuleDefaultsB> & { slideRoleOrder?: number[] } {
   return {
     contentPolicy: stored.contentPolicy?.trim() ? stored.contentPolicy : defaults.contentPolicy,
     designYaml: stored.designYaml?.trim() ? stored.designYaml : defaults.designYaml,
     behaviorRules: stored.behaviorRules?.trim() ? stored.behaviorRules : defaults.behaviorRules,
+    slideRoleOrder: stored.slideRoleOrder,
   };
 }
 
+function orderEqual(a: number[] | undefined, b: number[], tuning: TuningB): boolean {
+  const na = normalizeBSlideRoleOrder(a, tuning);
+  const nb = normalizeBSlideRoleOrder(b, tuning);
+  return na.length === nb.length && na.every((v, i) => v === nb[i]);
+}
+
 export function diffOverridesFromDefaults(
-  current: Required<PromptRuleOverridesB>,
+  current: Required<PromptRuleDefaultsB> & { slideRoleOrder?: number[] },
   defaults: PromptRuleDefaultsB,
+  tuning: TuningB,
 ): PromptRuleOverridesB {
   const out: PromptRuleOverridesB = {};
   if (current.contentPolicy.trim() !== defaults.contentPolicy.trim()) {
@@ -75,6 +78,9 @@ export function diffOverridesFromDefaults(
   }
   if (current.behaviorRules.trim() !== defaults.behaviorRules.trim()) {
     out.behaviorRules = current.behaviorRules;
+  }
+  if (current.slideRoleOrder?.length && !orderEqual(current.slideRoleOrder, defaultBSlideRoleOrder(), tuning)) {
+    out.slideRoleOrder = normalizeBSlideRoleOrder(current.slideRoleOrder, tuning);
   }
   return out;
 }

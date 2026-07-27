@@ -1,10 +1,19 @@
-export type ProposalFormatId = "training-delivery" | "collaboration-a" | "quick-5";
+import {
+  findCustomFormatById,
+  findCustomFormatBySlug,
+  loadCustomProposalFormats,
+  type StoredCustomProposalFormat,
+} from "./customProposalFormats";
+
+export type BuiltInFormatId = "training-delivery";
+
+export type ProposalFormatId = BuiltInFormatId | string;
+
+export type ProposalFormatEngine = "b" | "none";
 
 export type ProposalFormatDef = {
   id: ProposalFormatId;
-  /** 作成画面 `/create/:slug` */
   createSlug: string;
-  /** ルール画面 `/rules/:slug` */
   rulesSlug: string;
   title: string;
   description: string;
@@ -12,9 +21,13 @@ export type ProposalFormatDef = {
   available: boolean;
   rulesAvailable: boolean;
   formatBadge: string;
+  engine: ProposalFormatEngine;
+  isCustom: boolean;
+  /** カスタム形式のルールひな形（built-in は undefined → API から取得） */
+  customRuleDefaults?: import("@prompt-studio/core").PromptRuleDefaultsB;
 };
 
-export const PROPOSAL_FORMATS: ProposalFormatDef[] = [
+const BUILTIN: ProposalFormatDef[] = [
   {
     id: "training-delivery",
     createSlug: "b",
@@ -25,30 +38,38 @@ export const PROPOSAL_FORMATS: ProposalFormatDef[] = [
     available: true,
     rulesAvailable: true,
     formatBadge: "B",
-  },
-  {
-    id: "collaboration-a",
-    createSlug: "a",
-    rulesSlug: "a",
-    title: "協業・商品化の提案書",
-    description: "章立て15枚前後の経営向け提案（準備中）",
-    detail: "A形式 · 音声メモと参照資料から作成",
-    available: false,
-    rulesAvailable: false,
-    formatBadge: "A",
-  },
-  {
-    id: "quick-5",
-    createSlug: "quick5",
-    rulesSlug: "quick5",
-    title: "5枚クイック提案",
-    description: "短尺の提案資料用（準備中）",
-    detail: "要点整理型 · 5枚固定",
-    available: false,
-    rulesAvailable: false,
-    formatBadge: "5",
+    engine: "b",
+    isCustom: false,
   },
 ];
+
+function customToDef(c: StoredCustomProposalFormat): ProposalFormatDef {
+  return {
+    id: c.id,
+    createSlug: c.createSlug,
+    rulesSlug: c.rulesSlug,
+    title: c.title,
+    description: c.description,
+    detail: c.detail,
+    available: c.engine === "b",
+    rulesAvailable: true,
+    formatBadge: c.formatBadge,
+    engine: c.engine,
+    isCustom: true,
+    customRuleDefaults: c.ruleDefaults,
+  };
+}
+
+export function listAllProposalFormats(): ProposalFormatDef[] {
+  return [...BUILTIN, ...loadCustomProposalFormats().map(customToDef)];
+}
+
+export function allReservedSlugs(): Set<string> {
+  return new Set(listAllProposalFormats().flatMap((f) => [f.createSlug.toLowerCase(), f.rulesSlug.toLowerCase()]));
+}
+
+/** @deprecated 一覧は listAllProposalFormats を使用 */
+export const PROPOSAL_FORMATS = BUILTIN;
 
 export function formatCreatePath(createSlug: string): string {
   return `/create/${createSlug}`;
@@ -60,15 +81,31 @@ export function formatRulesPath(rulesSlug: string): string {
 
 export function getFormatByCreateSlug(slug: string): ProposalFormatDef | undefined {
   const s = slug.toLowerCase();
-  return PROPOSAL_FORMATS.find((f) => f.createSlug.toLowerCase() === s);
+  const custom = findCustomFormatBySlug(slug);
+  if (custom) return customToDef(custom);
+  return BUILTIN.find((f) => f.createSlug.toLowerCase() === s);
 }
 
 export function getFormatByRulesSlug(slug: string): ProposalFormatDef | undefined {
   const s = slug.toLowerCase();
-  return PROPOSAL_FORMATS.find((f) => f.rulesSlug.toLowerCase() === s);
+  const custom = findCustomFormatBySlug(slug);
+  if (custom) return customToDef(custom);
+  return BUILTIN.find((f) => f.rulesSlug.toLowerCase() === s);
 }
 
-/** 作成フローで使う formatId（API・ルール上書き） */
-export function formatIdFromCreateSlug(slug: string): ProposalFormatId | null {
-  return getFormatByCreateSlug(slug)?.id ?? null;
+export function formatStorageId(format: ProposalFormatDef): string {
+  return format.id;
+}
+
+/** 作成フローで使う storage id（API・ルール上書き） */
+export function formatIdFromCreateSlug(slug: string): string | null {
+  const f = getFormatByCreateSlug(slug);
+  return f ? formatStorageId(f) : null;
+}
+
+export function getFormatById(id: string): ProposalFormatDef | undefined {
+  const built = BUILTIN.find((f) => f.id === id);
+  if (built) return built;
+  const custom = findCustomFormatById(id);
+  return custom ? customToDef(custom) : undefined;
 }
