@@ -94,7 +94,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">{children}</main>
+      <main
+        className={`relative mx-auto px-4 py-10 md:px-6 md:py-14 ${
+          loc.pathname === "/prompt" ? "max-w-[min(100%,90rem)]" : "max-w-6xl"
+        }`}
+      >
+        {children}
+      </main>
 
       <footer className="relative border-t border-en-border py-8">
         <div className="mx-auto max-w-6xl px-4 md:px-6">

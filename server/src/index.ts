@@ -99,6 +99,34 @@ app.post("/api/expand-brief", async (req, res) => {
   }
 });
 
+app.post("/api/revise-prompt", async (req, res) => {
+  try {
+    const { gensparkText, markdown, instruction, tuning, focusLabel } = req.body as {
+      gensparkText?: string;
+      markdown?: string;
+      instruction?: string;
+      tuning?: TuningB;
+      focusLabel?: string;
+    };
+    if (!gensparkText?.trim() || !instruction?.trim() || !tuning?.documentDate) {
+      res.status(400).json({ error: "gensparkText, instruction, tuning required" });
+      return;
+    }
+    const { runRevisePrompt } = await import("../../service/revise-prompt.js");
+    const result = await runRevisePrompt({
+      gensparkText,
+      markdown: markdown ?? gensparkText,
+      instruction,
+      tuning,
+      focusLabel,
+    });
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e instanceof Error ? e.message : "revise failed" });
+  }
+});
+
 app.post("/api/generate", async (req, res) => {
   try {
     const { formatId, transcript, tuning, references, ruleOverrides } = req.body as {

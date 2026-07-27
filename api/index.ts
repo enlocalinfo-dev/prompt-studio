@@ -82,6 +82,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (head === "revise-prompt") {
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "method not allowed" });
+        return;
+      }
+      const { gensparkText, markdown, instruction, tuning, focusLabel } = req.body as {
+        gensparkText?: string;
+        markdown?: string;
+        instruction?: string;
+        tuning?: TuningB;
+        focusLabel?: string;
+      };
+      if (!gensparkText?.trim() || !instruction?.trim() || !tuning?.documentDate) {
+        res.status(400).json({ error: "gensparkText, instruction, tuning required" });
+        return;
+      }
+      const { runRevisePrompt } = await import("../service/revise-prompt.js");
+      const result = await runRevisePrompt({
+        gensparkText,
+        markdown: markdown ?? gensparkText,
+        instruction,
+        tuning,
+        focusLabel,
+      });
+      res.status(200).json(result);
+      return;
+    }
+
     if (head === "generate") {
       if (req.method !== "POST") {
         res.status(405).json({ error: "method not allowed" });

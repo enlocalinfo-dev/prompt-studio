@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { PromptSegment } from "@prompt-studio/core";
 import {
   parseDesignSystemFromGenspark,
-  parseDesignSystemYaml,
   parseSlideOutlinesFromGenspark,
 } from "@prompt-studio/core";
-import { SlidePreviewMock } from "./SlidePreviewMock";
-import { DesignSystemSlidePreview } from "./DesignSystemSlidePreview";
+import { AllSlidesAppearanceGrid } from "./AllSlidesAppearanceGrid";
 import { SlideOutlinePanel } from "./SlideOutlinePanel";
+
+function slideNumberFromSegment(seg: PromptSegment): number | undefined {
+  if (seg.kind !== "slide") return undefined;
+  const m = seg.label.match(/スライド\s*(\d+)/i) ?? seg.slideKey?.match(/(\d+)/);
+  return m?.[1] ? Number.parseInt(m[1], 10) : undefined;
+}
 
 export function PromptWorkspace({
   segments,
@@ -35,17 +39,9 @@ export function PromptWorkspace({
     [gensparkText],
   );
 
-  const activeDesign = useMemo(() => {
-    if (active?.kind !== "yaml") return designParsed;
-    return parseDesignSystemYaml(active.body);
-  }, [active, designParsed]);
+  const highlightSlide = active ? slideNumberFromSegment(active) : undefined;
 
   if (!active) return null;
-
-  const copyPayload =
-    active.kind === "yaml" || active.kind === "global_rule" || active.kind === "preamble"
-      ? gensparkText
-      : active.body;
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,9 +57,7 @@ export function PromptWorkspace({
                 : "border-en-border bg-white/[0.02] text-en-muted hover:border-en-primary/30 hover:text-en-text"
             }`}
           >
-            {s.mandatory && (
-              <span className="mr-1 font-semibold text-en-accent">必須</span>
-            )}
+            {s.mandatory && <span className="mr-1 font-semibold text-en-accent">必須</span>}
             <span className="line-clamp-2 max-w-[9rem]">{s.label}</span>
           </button>
         ))}
@@ -78,7 +72,7 @@ export function PromptWorkspace({
           transition={{ duration: 0.22 }}
           className="glass-panel overflow-hidden rounded-2xl"
         >
-          <div className="border-b border-en-border bg-en-deep/50 px-4 py-4 md:px-5 md:py-5">
+          <div className="border-b border-en-border bg-en-deep/50 px-4 py-4 md:px-6 md:py-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-en-accent">
               このパートの定義
             </p>
@@ -87,47 +81,40 @@ export function PromptWorkspace({
             </p>
             {active.mandatory && (
               <p className="mt-2 text-[11px] text-en-muted">
-                YAML・共通ルールはスライド■固稿とセットで Genspark に引き継ぎます（改変禁止）。
+                YAML・共通ルールはスライド■固稿とセットで Genspark に引き継ぎます。
               </p>
             )}
           </div>
 
-          <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-en-border">
-            <div className="flex min-h-[280px] flex-col border-b border-en-border lg:border-b-0">
-              <div className="flex items-center justify-between border-b border-en-border px-4 py-2.5">
-                <span className="text-xs font-semibold text-en-text">プロンプト原文</span>
+          <div className="grid gap-0 xl:grid-cols-2 xl:divide-x xl:divide-en-border">
+            <div className="flex min-h-[360px] flex-col border-b border-en-border xl:min-h-[520px] xl:border-b-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-en-border px-4 py-3 md:px-5">
+                <div>
+                  <span className="text-xs font-semibold text-en-text">プロンプト原文（Genspark用・全文）</span>
+                  <p className="mt-0.5 text-[10px] text-en-muted">
+                    必須ルール・■固稿・YAML をすべて含みます。選択中: {active.label}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => onCopySegment(copyPayload)}
-                  className="text-[11px] font-medium text-en-primary-bright hover:underline"
+                  onClick={() => onCopySegment(gensparkText)}
+                  className="shrink-0 rounded-lg bg-en-primary/20 px-3 py-1.5 text-[11px] font-medium text-en-primary-bright hover:bg-en-primary/30"
                 >
-                  この部分を含めコピー
+                  このグループを含め全文コピー
                 </button>
               </div>
-              <pre className="max-h-[42vh] flex-1 overflow-auto p-4 font-mono text-[10px] leading-relaxed whitespace-pre-wrap text-en-text/90 md:text-[11px]">
-                {active.body}
+              <pre className="max-h-[55vh] flex-1 overflow-auto p-4 font-mono text-[10px] leading-relaxed whitespace-pre-wrap text-en-text/90 md:max-h-[65vh] md:p-5 md:text-[11px] xl:max-h-[72vh]">
+                {gensparkText}
               </pre>
             </div>
 
-            <div className="flex min-h-[280px] flex-col p-4 md:p-5">
-              <span className="mb-3 text-xs font-semibold text-en-text">
-                {active.kind === "yaml" ? "スライド見た目の予測（YAML反映）" : "スライド／ルールの見え方"}
-              </span>
-              {active.kind === "yaml" ? (
-                <DesignSystemSlidePreview
-                  parsed={activeDesign}
-                  gensparkText={gensparkText}
-                  yamlBody={active.body}
-                />
-              ) : (
-                <SlidePreviewMock
-                  title={active.previewTitle ?? active.label}
-                  lines={active.previewLines ?? []}
-                  kind={active.kind}
-                  slideLabel={active.label}
-                  designColors={designParsed.colors}
-                />
-              )}
+            <div className="flex min-h-[360px] flex-col p-4 md:p-6 xl:min-h-[520px]">
+              <span className="mb-3 text-xs font-semibold text-en-text">スライド見た目の予測（全枚）</span>
+              <AllSlidesAppearanceGrid
+                parsed={designParsed}
+                slides={slideOutline}
+                highlightSlideNumber={highlightSlide}
+              />
               <SlideOutlinePanel slides={slideOutline} />
             </div>
           </div>
@@ -135,7 +122,7 @@ export function PromptWorkspace({
       </AnimatePresence>
 
       <p className="text-center text-[11px] text-en-muted">
-        {segments.length} パート（ルール＋スライド）— チップで切り替え
+        {segments.length} パート — チップで定義を切り替え（原文は常に全文表示）
       </p>
     </div>
   );

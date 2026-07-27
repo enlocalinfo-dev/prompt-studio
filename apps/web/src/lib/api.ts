@@ -85,3 +85,22 @@ export async function fetchHealth(): Promise<{ ok: boolean; llm: boolean }> {
   const res = await fetch("/api/health");
   return res.json();
 }
+
+export async function postRevisePrompt(body: {
+  gensparkText: string;
+  markdown: string;
+  instruction: string;
+  tuning: Tuning;
+  focusLabel?: string;
+}): Promise<{ gensparkText: string; markdown: string; usedLlm: boolean; error?: string }> {
+  const res = await fetch("/api/revise-prompt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : (data.error ?? `HTTP ${res.status}`));
+  }
+  return data;
+}

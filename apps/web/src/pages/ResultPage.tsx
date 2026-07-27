@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { parseGensparkPrompt, type PromptSegment } from "@prompt-studio/core";
+import { PromptAiRevisePanel, segmentsAfterRevise } from "../components/PromptAiRevisePanel";
 import { PromptWorkspace } from "../components/PromptWorkspace";
 import { StickyCopyBar } from "../components/StickyCopyBar";
 import { useToast } from "../components/Toast";
 import { Button } from "../components/ui/Button";
-import { loadSession, saveSession, type SessionPayload } from "../lib/storage";
+import { loadSession, saveSession, pushHistory, loadTrainingBrief, type SessionPayload } from "../lib/storage";
 
 type LocationState = { session?: SessionPayload };
 
@@ -33,6 +34,8 @@ export function ResultPage() {
     if (content.segments?.length) return content.segments;
     return parseGensparkPrompt(content.markdown);
   }, [content]);
+
+  const gensparkText = content?.gensparkText || content?.markdown || "";
 
   if (!session || !content) {
     return (
@@ -67,6 +70,35 @@ export function ResultPage() {
     pushSuccess("ファイルを保存しました");
   }
 
+  function handleRevised(payload: { gensparkText: string; markdown: string }) {
+    if (!session?.result) return;
+    const nextSegments = segmentsAfterRevise(payload.markdown, payload.gensparkText);
+    const nextResult = {
+      ...session.result,
+      markdown: payload.markdown,
+      gensparkText: payload.gensparkText,
+      segments: nextSegments,
+    };
+    const nextSession: SessionPayload = { ...session, result: nextResult };
+    setSession(nextSession);
+    saveSession(nextSession);
+    pushHistory({
+      clientName: session.tuning.clientName,
+      projectTitle: session.tuning.projectTitle,
+      documentDate: session.tuning.documentDate,
+      brief: loadTrainingBrief(),
+      tuning: session.tuning,
+      gensparkPreview: payload.gensparkText.slice(0, 120),
+      result: {
+        markdown: payload.markdown,
+        gensparkText: payload.gensparkText,
+        folderNameSuggestion: session.result.folderNameSuggestion,
+        usedLlm: true,
+        segments: nextSegments,
+      },
+    });
+  }
+
   return (
     <>
       <StickyCopyBar visible onCopy={() => void copyGenspark()} onDownload={downloadMd} />
@@ -81,9 +113,10 @@ export function ResultPage() {
         </Button>
 
         <div className="mt-4">
-          <h1 className="text-2xl font-semibold tracking-tight">プロンプト詳細</h1>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">プロンプト詳細</h1>
           <p className="mt-2 text-sm text-en-muted">
-            YAML・各スライドの■固稿・8枚一覧・見た目の予測を確認できます。
+            左に Genspark 用<strong className="font-medium text-en-text">全文</strong>
+            （必須ルール・■固稿・YAML）。右に全スライドの見た目予測です。
           </p>
           <p className="mt-2 font-mono text-xs text-en-muted">{content.folderNameSuggestion}</p>
         </div>
@@ -91,13 +124,20 @@ export function ResultPage() {
         <div className="mt-6">
           <PromptWorkspace
             segments={segments}
-            gensparkText={content.gensparkText || content.markdown}
+            gensparkText={gensparkText}
             onCopySegment={async (text) => {
               await navigator.clipboard.writeText(text);
-              pushSuccess("コピーしました");
+              pushSuccess("Genspark用全文をコピーしました");
             }}
           />
         </div>
+
+        <PromptAiRevisePanel
+          gensparkText={gensparkText}
+          markdown={content.markdown}
+          tuning={session.tuning}
+          onRevised={handleRevised}
+        />
       </motion.div>
     </>
   );
