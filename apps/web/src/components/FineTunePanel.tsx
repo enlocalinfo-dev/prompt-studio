@@ -62,7 +62,7 @@ export function FineTunePanel({ tuning, onChange, disabled = false, fieldErrors 
         <Toggle label="実質負担のスライドを含める" checked={tuning.netCostSlide} onChange={(v) => patch({ netCostSlide: v })} />
         <Toggle label="図解・イラストを多めに指示" checked={tuning.illustrationEmphasis} onChange={(v) => patch({ illustrationEmphasis: v })} />
         <p className="pt-2 text-center text-[11px]">
-          <Link to="/rules" className="text-en-primary-bright hover:underline">
+          <Link to="/rules/b" className="text-en-primary-bright hover:underline">
             プロンプトルール（枚数・YAML・禁止事項）を編集
           </Link>
         </p>

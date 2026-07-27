@@ -1,11 +1,30 @@
 import type { PromptRuleDefaultsB, PromptRuleOverridesB } from "@prompt-studio/core";
+import type { ProposalFormatId } from "./proposalFormats";
 
-const KEY = "prompt-studio-rule-overrides-B";
-const DEFAULTS_KEY = "prompt-studio-rule-defaults-hash-B";
+const LEGACY_KEY_B = "prompt-studio-rule-overrides-B";
 
-export function loadPromptRuleOverrides(): PromptRuleOverridesB {
+function overridesKey(formatId: ProposalFormatId): string {
+  return `prompt-studio-rule-overrides-${formatId}`;
+}
+
+function fingerprintKey(formatId: ProposalFormatId): string {
+  return `prompt-studio-rule-defaults-hash-${formatId}`;
+}
+
+function migrateLegacyBIfNeeded(formatId: ProposalFormatId): void {
+  if (formatId !== "training-delivery") return;
+  const key = overridesKey(formatId);
+  if (localStorage.getItem(key)) return;
+  const legacy = localStorage.getItem(LEGACY_KEY_B);
+  if (legacy) {
+    localStorage.setItem(key, legacy);
+  }
+}
+
+export function loadPromptRuleOverrides(formatId: ProposalFormatId = "training-delivery"): PromptRuleOverridesB {
+  migrateLegacyBIfNeeded(formatId);
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(overridesKey(formatId));
     if (raw) return JSON.parse(raw) as PromptRuleOverridesB;
   } catch {
     /* ignore */
@@ -13,18 +32,23 @@ export function loadPromptRuleOverrides(): PromptRuleOverridesB {
   return {};
 }
 
-export function savePromptRuleOverrides(overrides: PromptRuleOverridesB): void {
-  localStorage.setItem(KEY, JSON.stringify(overrides));
+export function savePromptRuleOverrides(
+  overrides: PromptRuleOverridesB,
+  formatId: ProposalFormatId = "training-delivery",
+): void {
+  localStorage.setItem(overridesKey(formatId), JSON.stringify(overrides));
 }
 
-/** テンプレ更新時にデフォルトが変わったら上書きをリセットするための簡易ハッシュ */
-export function rememberDefaultsFingerprint(defaults: PromptRuleDefaultsB): void {
+export function rememberDefaultsFingerprint(
+  defaults: PromptRuleDefaultsB,
+  formatId: ProposalFormatId = "training-delivery",
+): void {
   const fp = `${defaults.contentPolicy.length}:${defaults.designYaml.length}:${defaults.behaviorRules.length}`;
-  localStorage.setItem(DEFAULTS_KEY, fp);
+  localStorage.setItem(fingerprintKey(formatId), fp);
 }
 
-export function clearPromptRuleOverrides(): void {
-  localStorage.removeItem(KEY);
+export function clearPromptRuleOverrides(formatId: ProposalFormatId = "training-delivery"): void {
+  localStorage.removeItem(overridesKey(formatId));
 }
 
 export function mergeOverridesWithDefaults(
@@ -38,7 +62,6 @@ export function mergeOverridesWithDefaults(
   };
 }
 
-/** 保存用：デフォルトと同一なら undefined にしてストレージを軽くする */
 export function diffOverridesFromDefaults(
   current: Required<PromptRuleOverridesB>,
   defaults: PromptRuleDefaultsB,

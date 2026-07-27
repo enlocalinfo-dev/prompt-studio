@@ -41,9 +41,9 @@ export function HomePage() {
           className="block rounded-2xl border border-en-primary/30 bg-en-primary/8 p-5 transition-colors hover:border-en-primary/50 hover:bg-en-primary/12 md:p-6"
         >
           <p className="text-xs font-semibold text-en-accent">共通設定</p>
-          <h2 className="mt-1 text-lg font-semibold text-en-text">プロンプトルール（ロジック・3区分編集）</h2>
+          <h2 className="mt-1 text-lg font-semibold text-en-text">プロンプトルール（資料の種類ごと）</h2>
           <p className="mt-2 text-sm text-en-muted">
-            8枚の構成説明、枚数が7枚になる条件、内容／デザインYAML／イラスト等のルールを確認・修正できます。
+            「研修の提案書」など種類を選んで、内容・デザインYAML・出力ルールを編集できます。
           </p>
         </Link>
       </section>

@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import type { PromptRuleDefaultsB, TuningB } from "@prompt-studio/core";
+import { ProposalFormatCards } from "../components/ProposalFormatCards";
 import { Button } from "../components/ui/Button";
 import { useToast } from "../components/Toast";
+import {
+  getFormatByRulesSlug,
+  formatCreatePath,
+  type ProposalFormatDef,
+} from "../lib/proposalFormats";
 import {
   DELIVERY_B_SLIDES,
   effectiveBSlideCount,
@@ -41,6 +47,67 @@ const TABS: { id: TabId; label: string; hint: string }[] = [
 ];
 
 export function PromptRulesPage() {
+  const { formatSlug } = useParams<{ formatSlug?: string }>();
+
+  if (!formatSlug) {
+    return <PromptRulesFormatPicker />;
+  }
+
+  const format = getFormatByRulesSlug(formatSlug);
+  if (!format) {
+    return <PromptRulesFormatPicker invalidSlug={formatSlug} />;
+  }
+
+  if (!format.rulesAvailable) {
+    return <PromptRulesComingSoon format={format} />;
+  }
+
+  if (format.id === "training-delivery") {
+    return <PromptRulesEditorB format={format} />;
+  }
+
+  return <PromptRulesComingSoon format={format} />;
+}
+
+function PromptRulesFormatPicker({ invalidSlug }: { invalidSlug?: string }) {
+  const nav = useNavigate();
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
+          ← トップ
+        </Button>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">プロンプトルール</h1>
+        <p className="mt-2 max-w-2xl text-sm text-en-muted">
+          <strong className="font-medium text-en-text">作成する資料の種類</strong>
+          を選ぶと、その形式専用のルール（内容・YAML・禁止事項）を編集できます。種類ごとに別保存されます。
+        </p>
+        {invalidSlug && (
+          <p className="mt-2 text-xs text-en-accent">「{invalidSlug}」に該当するルールはありません。下から選び直してください。</p>
+        )}
+      </div>
+      <ProposalFormatCards mode="rules" />
+    </div>
+  );
+}
+
+function PromptRulesComingSoon({ format }: { format: ProposalFormatDef }) {
+  const nav = useNavigate();
+  return (
+    <div className="glass-panel rounded-2xl p-8 text-center">
+      <h1 className="text-xl font-semibold text-en-text">{format.title}</h1>
+      <p className="mt-2 text-sm text-en-muted">プロンプトルールの編集は準備中です。</p>
+      <div className="mt-6 flex justify-center gap-3">
+        <Button variant="secondary" onClick={() => nav("/rules")}>
+          資料の種類を選び直す
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PromptRulesEditorB({ format }: { format: ProposalFormatDef }) {
   const nav = useNavigate();
   const { pushSuccess, pushError } = useToast();
   const [tab, setTab] = useState<TabId>("content");
@@ -53,11 +120,11 @@ export function PromptRulesPage() {
     let cancelled = false;
     (async () => {
       try {
-        const d = await fetchPromptRuleDefaults();
+        const d = await fetchPromptRuleDefaults(format.rulesSlug);
         if (cancelled) return;
         setDefaults(d);
-        rememberDefaultsFingerprint(d);
-        const merged = mergeOverridesWithDefaults(d, loadPromptRuleOverrides());
+        rememberDefaultsFingerprint(d, format.id);
+        const merged = mergeOverridesWithDefaults(d, loadPromptRuleOverrides(format.id));
         setDraft(merged);
       } catch (e) {
         pushError(e instanceof Error ? e.message : "読み込みに失敗しました");
@@ -68,7 +135,7 @@ export function PromptRulesPage() {
     return () => {
       cancelled = true;
     };
-  }, [pushError]);
+  }, [format.id, format.rulesSlug, pushError]);
 
   const slideCount = useMemo(() => effectiveBSlideCount(tuning), [tuning]);
 
@@ -83,23 +150,23 @@ export function PromptRulesPage() {
   const save = useCallback(() => {
     if (!defaults || !draft) return;
     const overrides = diffOverridesFromDefaults(draft, defaults);
-    savePromptRuleOverrides(overrides);
-    pushSuccess("プロンプトルールを保存しました。次回の作成から反映されます。");
-  }, [defaults, draft, pushSuccess]);
+    savePromptRuleOverrides(overrides, format.id);
+    pushSuccess(`「${format.title}」のプロンプトルールを保存しました。`);
+  }, [defaults, draft, format.id, format.title, pushSuccess]);
 
   const resetAll = useCallback(() => {
     if (!defaults) return;
-    clearPromptRuleOverrides();
+    clearPromptRuleOverrides(format.id);
     setDraft({
       contentPolicy: defaults.contentPolicy,
       designYaml: defaults.designYaml,
       behaviorRules: defaults.behaviorRules,
     });
     pushSuccess("B標準のデフォルトに戻しました");
-  }, [defaults, pushSuccess]);
+  }, [defaults, format.id, pushSuccess]);
 
   if (loading) {
-    return <p className="text-sm text-en-muted">B標準テンプレからルールを読み込んでいます…</p>;
+    return <p className="text-sm text-en-muted">{format.title}のテンプレからルールを読み込んでいます…</p>;
   }
 
   if (!defaults || !draft) {
@@ -116,18 +183,23 @@ export function PromptRulesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
-          ← トップ
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/rules")}>
+          ← 資料の種類を選び直す
         </Button>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">プロンプトルール</h1>
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">プロンプトルール</h1>
+          <span className="rounded-md bg-en-primary/15 px-2 py-0.5 text-xs font-semibold text-en-primary-bright">
+            {format.title}
+          </span>
+        </div>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-en-muted">
-          提案プロンプト作成の<strong className="font-medium text-en-text">共通ロジック</strong>
-          を確認し、内容・デザインYAML・出力ルールの3区分で編集できます。案件ごとの■固稿は見積PDF作成時にLLMが差し替えます。
+          この資料種別専用の共通ロジックです。保存内容は<strong className="font-medium text-en-text">「{format.title}」でPDF作成するときだけ</strong>
+          反映されます（他の資料種別とは別設定）。
         </p>
       </div>
 
       <section className="glass-panel rounded-2xl p-5 md:p-6">
-        <h2 className="text-sm font-semibold text-en-text">この機能の動き方</h2>
+        <h2 className="text-sm font-semibold text-en-text">この機能の動き方（{format.formatBadge}形式）</h2>
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-en-muted">
           {PROMPT_RULE_LOGIC_SUMMARY.pipeline.map((step) => (
             <li key={step}>{step}</li>
@@ -202,12 +274,7 @@ export function PromptRulesPage() {
         </div>
         <p className="mt-3 text-xs text-en-muted">{TABS.find((t) => t.id === tab)?.hint}</p>
 
-        <motion.div
-          key={tab}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4"
-        >
+        <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
           <textarea
             className="input-en min-h-[320px] w-full font-mono text-[11px] leading-relaxed md:min-h-[420px] md:text-xs"
             value={
@@ -238,7 +305,7 @@ export function PromptRulesPage() {
             B標準にリセット
           </Button>
           <Link
-            to="/create/b"
+            to={formatCreatePath(format.createSlug)}
             className="inline-flex items-center justify-center rounded-xl border border-en-border px-4 py-2.5 text-sm text-en-text hover:border-en-primary/40"
           >
             見積PDFで作成へ

@@ -6,7 +6,10 @@ import {
   type PromptRuleDefaultsB,
 } from "@prompt-studio/core";
 
-export async function fetchPromptRuleDefaults(): Promise<PromptRuleDefaultsB> {
+export async function fetchPromptRuleDefaults(rulesSlug: string): Promise<PromptRuleDefaultsB> {
+  if (rulesSlug !== "b") {
+    throw new Error("この資料種別のルールテンプレはまだありません");
+  }
   const res = await fetch("/api/templates/B");
   if (!res.ok) throw new Error("B標準テンプレを読み込めませんでした");
   const data = (await res.json()) as { content?: string };

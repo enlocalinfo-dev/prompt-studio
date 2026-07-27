@@ -24,6 +24,7 @@ function AnimatedRoutes() {
           <Route path="/create/:formatId" element={<CreatePage />} />
           <Route path="/prompt" element={<ResultPage />} />
           <Route path="/rules" element={<PromptRulesPage />} />
+          <Route path="/rules/:formatSlug" element={<PromptRulesPage />} />
           <Route path="/result" element={<Navigate to="/prompt" replace />} />
         </Routes>
       </motion.div>

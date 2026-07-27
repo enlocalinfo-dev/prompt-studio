@@ -39,6 +39,7 @@ import {
   saveTuningB,
 } from "../lib/storage";
 import { navigateToPromptDetail } from "../lib/promptNavigation";
+import { formatIdFromCreateSlug } from "../lib/proposalFormats";
 import { loadPromptRuleOverrides } from "../lib/promptRuleStorage";
 
 const FORMAT_ID = "B" as const;
@@ -165,7 +166,7 @@ export function CreatePage() {
         transcript,
         tuning: input.tuning,
         references: input.references,
-        ruleOverrides: loadPromptRuleOverrides(),
+        ruleOverrides: loadPromptRuleOverrides(formatIdFromCreateSlug(formatSlug ?? "b") ?? "training-delivery"),
       });
       const inline: InlinePromptResult = {
         markdown: result.markdown,
@@ -320,7 +321,7 @@ export function CreatePage() {
           <ProposalFormatCards compact />
         </div>
         <p className="mt-6 text-center text-sm">
-          <Link to="/rules" className="text-en-primary-bright hover:underline">
+          <Link to="/rules/b" className="text-en-primary-bright hover:underline">
             先にプロンプトルール（8枚のロジック・YAML）を確認・編集する
           </Link>
         </p>

@@ -78,10 +78,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               to="/rules"
               className={`relative rounded-xl px-3 py-2 text-sm ${
-                loc.pathname === "/rules" ? "text-en-text" : "text-en-muted hover:text-en-text"
+                loc.pathname.startsWith("/rules") ? "text-en-text" : "text-en-muted hover:text-en-text"
               }`}
             >
-              {loc.pathname === "/rules" && (
+              {loc.pathname.startsWith("/rules") && (
                 <motion.span
                   layoutId="nav-rules"
                   className="absolute inset-0 rounded-xl bg-white/8 ring-1 ring-white/5"
