@@ -20,7 +20,7 @@ function AnimatedRoutes() {
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route path="/create" element={<CreatePage />} />
-          <Route path="/create/:formatId" element={<Navigate to="/create" replace />} />
+          <Route path="/create/:formatId" element={<CreatePage />} />
           <Route path="/result" element={<ResultPage />} />
         </Routes>
       </motion.div>

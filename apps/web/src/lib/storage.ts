@@ -98,6 +98,14 @@ export function saveTrainingBrief(brief: TrainingDeliveryBrief): void {
 const HISTORY_KEY = "prompt-studio-history-v1";
 const HISTORY_MAX = 5;
 
+export interface HistoryPromptSnapshot {
+  markdown: string;
+  gensparkText: string;
+  folderNameSuggestion: string;
+  usedLlm: boolean;
+  segments?: import("@prompt-studio/core").PromptSegment[];
+}
+
 export interface HistoryEntry {
   id: string;
   savedAt: string;
@@ -107,6 +115,8 @@ export interface HistoryEntry {
   brief: TrainingDeliveryBrief;
   tuning: TuningB;
   gensparkPreview?: string;
+  /** 作成済みプロンプト（最近の案件から直接プレビューへ） */
+  result?: HistoryPromptSnapshot;
 }
 
 export function loadHistory(): HistoryEntry[] {

@@ -1,15 +1,13 @@
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { DeliveryProposalGuide } from "../components/DeliveryProposalGuide";
+import { ProposalFormatCards } from "../components/ProposalFormatCards";
 import { RecentCasesList } from "../components/RecentCasesList";
-import { Button } from "../components/ui/Button";
 import { loadHistory } from "../lib/storage";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function HomePage() {
-  const nav = useNavigate();
   const [guideOpen, setGuideOpen] = useState(false);
   const history = loadHistory();
 
@@ -19,24 +17,24 @@ export function HomePage() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease }}
-        className="relative mb-6"
+        className="relative mb-8"
       >
         <h1 className="max-w-3xl text-[1.75rem] font-semibold leading-[1.25] tracking-tight md:text-4xl md:leading-[1.2]">
-          見積PDFから、
-          <span className="text-gradient-en"> 提案スライド用の指示文</span>
+          決まった形式の
+          <span className="text-gradient-en"> 提案プロンプト</span>
           を作成
         </h1>
         <p className="mt-5 max-w-2xl text-sm leading-relaxed text-en-muted md:text-base">
-          見積1枚をアップロードするだけで、経営者向けサマリー（全8枚）を Genspark で生成するための文章を自動作成します。
+          種類を選んでから見積PDFを読み込むだけで、Genspark に貼り付ける指示文が完成します。まずは作りたい資料のカードを選んでください。
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button className="!px-8 !py-3.5 text-base" onClick={() => nav("/create")}>
-            見積PDFを選んで開始
-          </Button>
-        </div>
       </motion.section>
 
-      <RecentCasesList items={history} />
+      <section>
+        <h2 className="mb-4 text-sm font-semibold text-en-text">作成する資料の種類</h2>
+        <ProposalFormatCards />
+      </section>
+
+      <RecentCasesList items={history} className="mt-10" />
 
       <section className="mt-10">
         <button

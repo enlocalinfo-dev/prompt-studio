@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
 import {
@@ -17,6 +17,8 @@ import { FineTunePanel } from "../components/FineTunePanel";
 import { GenerationProgressOverlay, type GenPhase } from "../components/GenerationProgressOverlay";
 import { InlineAlert } from "../components/InlineAlert";
 import { ReferenceMaterialsPanel, emptyReferences } from "../components/ReferenceMaterialsPanel";
+import { RecentCasesList } from "../components/RecentCasesList";
+import { ProposalFormatCards } from "../components/ProposalFormatCards";
 import { StickyCopyBar } from "../components/StickyCopyBar";
 import { TrainingDeliveryBriefForm } from "../components/TrainingDeliveryBriefForm";
 import { useToast } from "../components/Toast";
@@ -26,6 +28,7 @@ import { postGenerate } from "../lib/api";
 import {
   findHistory,
   loadExtraNotes,
+  loadHistory,
   loadTrainingBrief,
   loadTuningB,
   pushHistory,
@@ -51,7 +54,12 @@ function validateTuning(tuning: TuningB, pdfLoaded: boolean, refsLen: number): F
 export function CreatePage() {
   const nav = useNavigate();
   const location = useLocation();
+  const { formatId: formatParam } = useParams<{ formatId?: string }>();
   const { pushSuccess, pushError } = useToast();
+
+  const formatSlug = formatParam?.toLowerCase();
+  const showTrainingDeliveryFlow = formatSlug === "b";
+  const history = loadHistory();
 
   const [extraNotes, setExtraNotes] = useState(() => loadExtraNotes());
   const [estimateSlideDetail, setEstimateSlideDetail] = useState("");
@@ -150,6 +158,13 @@ export function CreatePage() {
         brief: input.brief,
         tuning: input.tuning,
         gensparkPreview: inline.gensparkText.slice(0, 120),
+        result: {
+          markdown: inline.markdown,
+          gensparkText: inline.gensparkText,
+          folderNameSuggestion: inline.folderNameSuggestion,
+          usedLlm: inline.usedLlm,
+          segments: inline.segments,
+        },
       });
       setInlinePrompt(inline);
       if (input.openResultPage) {
@@ -253,6 +268,28 @@ export function CreatePage() {
 
   const showSticky = Boolean(inlinePrompt?.gensparkText || inlinePrompt?.markdown);
 
+  if (!showTrainingDeliveryFlow) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+      >
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
+          ← トップ
+        </Button>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">作成する資料を選ぶ</h1>
+        <p className="mt-2 max-w-xl text-sm text-en-muted">
+          カードを選ぶと、見積PDFをドロップする画面に進みます。
+        </p>
+        <div className="mt-8">
+          <ProposalFormatCards compact />
+        </div>
+        <RecentCasesList items={history} className="mt-10" />
+      </motion.div>
+    );
+  }
+
   return (
     <>
       <GenerationProgressOverlay phase={overlayPhase} />
@@ -267,6 +304,13 @@ export function CreatePage() {
         <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/")}>
           ← トップ
         </Button>
+
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <h1 className="text-xl font-semibold text-en-text md:text-2xl">研修の提案書</h1>
+          <span className="rounded-md bg-en-primary/15 px-2 py-0.5 text-[10px] font-semibold text-en-primary-bright">
+            見積PDF → 全8枚
+          </span>
+        </div>
 
         {bannerError && (
           <div className="mt-4">
@@ -373,6 +417,8 @@ export function CreatePage() {
             </AnimatePresence>
           </div>
         )}
+
+        <RecentCasesList items={history} className="mt-10" />
       </motion.div>
     </>
   );

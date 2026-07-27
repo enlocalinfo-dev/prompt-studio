@@ -39,7 +39,7 @@ export function ResultPage() {
       <div className="glass-panel rounded-2xl p-8 text-center text-sm text-en-muted">
         表示する結果がありません。先に見積PDFから作成してください。
         <div className="mt-4 flex justify-center gap-2">
-          <Button variant="primary" onClick={() => nav("/create")}>
+          <Button variant="primary" onClick={() => nav("/create/b")}>
             作成を開始
           </Button>
         </div>

@@ -1,13 +1,7 @@
 import { motion } from "framer-motion";
 import type { SlideOutlineItem } from "@prompt-studio/core";
 
-export function SlideOutlinePanel({
-  slides,
-  variant = "full",
-}: {
-  slides: SlideOutlineItem[];
-  variant?: "compact" | "full";
-}) {
+export function SlideOutlinePanel({ slides }: { slides: SlideOutlineItem[] }) {
   if (slides.length === 0) {
     return (
       <p className="text-[11px] text-en-muted">
@@ -16,24 +10,14 @@ export function SlideOutlinePanel({
     );
   }
 
-  const isCompact = variant === "compact";
-
   return (
-    <div
-      className={
-        isCompact
-          ? "max-h-[220px] overflow-y-auto rounded-xl border border-en-border bg-en-deep/30 p-3"
-          : "mt-4 rounded-xl border border-en-border bg-en-deep/30 p-3 md:p-4"
-      }
-    >
+    <div className="mt-4 rounded-xl border border-en-border bg-en-deep/30 p-3 md:p-4">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-semibold text-en-text">
-          全{slides.length}枚の内容一覧
-        </h4>
+        <h4 className="text-[11px] font-semibold text-en-text">全{slides.length}枚の内容一覧</h4>
         <span className="text-[10px] text-en-muted">■固稿から自動抽出</span>
       </div>
 
-      <ol className={`space-y-2 ${isCompact ? "text-[10px]" : "text-[11px]"}`}>
+      <ol className="space-y-2 text-[11px]">
         {slides.map((s, i) => (
           <motion.li
             key={`${s.slideNumber}-${s.sectionLabel}`}
@@ -47,16 +31,10 @@ export function SlideOutlinePanel({
                 {String(s.slideNumber).padStart(2, "0")}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 font-medium leading-snug text-en-text/95">
-                  {s.headline}
-                </p>
-                {!isCompact && (
-                  <p className="mt-0.5 line-clamp-1 text-[10px] text-en-muted">{s.sectionLabel}</p>
-                )}
+                <p className="line-clamp-2 font-medium leading-snug text-en-text/95">{s.headline}</p>
+                <p className="mt-0.5 line-clamp-1 text-[10px] text-en-muted">{s.sectionLabel}</p>
                 {s.subline && (
-                  <p className={`mt-1 line-clamp-2 text-en-muted ${isCompact ? "text-[9px]" : "text-[10px]"}`}>
-                    {s.subline}
-                  </p>
+                  <p className="mt-1 line-clamp-2 text-[10px] text-en-muted">{s.subline}</p>
                 )}
               </div>
             </div>
