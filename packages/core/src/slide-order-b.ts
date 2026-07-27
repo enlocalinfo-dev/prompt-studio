@@ -120,3 +120,26 @@ export function applySlideRoleOrderToGensparkText(
 export function slideRoleOrderSummary(order: number[] | undefined, tuning: TuningB): string {
   return orderSequenceLabel(order, tuning);
 }
+
+const SLIDE_ORDER_BLOCK = "【スライド出力順（ルール設定）】";
+
+/** ルール編集画面の保存時：behaviorRules 内の出力順ブロックを D&D 順と一致させる */
+export function syncBehaviorRulesWithSlideOrder(
+  behaviorRules: string,
+  order: number[] | undefined,
+  tuning: TuningB,
+): string {
+  const seq = orderSequenceLabel(order, tuning);
+  const count = normalizeBSlideRoleOrder(order, tuning).length;
+  const block = `${SLIDE_ORDER_BLOCK}
+- 出力順: ${seq}
+- 枚数: ${count}枚（生成時に■固稿をこの順で反映）
+- 上記は「スライドの役割と出力順」の並びと一致`;
+
+  let out = behaviorRules.replace(
+    new RegExp(`${SLIDE_ORDER_BLOCK}[\\s\\S]*?(?=\\n【|$)`, "m"),
+    "",
+  );
+  out = out.replace(/\n{3,}/g, "\n\n").trimEnd();
+  return `${out}\n\n${block}\n`;
+}
