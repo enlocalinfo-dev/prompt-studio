@@ -87,11 +87,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(405).json({ error: "method not allowed" });
         return;
       }
-      const { formatId, transcript, tuning, references } = req.body as {
+      const { formatId, transcript, tuning, references, ruleOverrides } = req.body as {
         formatId: string;
         transcript: string;
         tuning: TuningB;
         references?: ReferenceBundle;
+        ruleOverrides?: import("@prompt-studio/core").PromptRuleOverridesB;
       };
       if (formatId !== "B") {
         res.status(400).json({
@@ -104,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(400).json({ error: "tuning.documentDate required" });
         return;
       }
-      const result = await runGenerate({ formatId: "B", transcript, tuning, references });
+      const result = await runGenerate({ formatId: "B", transcript, tuning, references, ruleOverrides });
       res.status(200).json(result);
       return;
     }

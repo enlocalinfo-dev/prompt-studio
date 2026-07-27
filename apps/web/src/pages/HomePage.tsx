@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { DeliveryProposalGuide } from "../components/DeliveryProposalGuide";
 import { ProposalFormatCards } from "../components/ProposalFormatCards";
@@ -32,6 +33,19 @@ export function HomePage() {
       <section>
         <h2 className="mb-4 text-sm font-semibold text-en-text">作成する資料の種類</h2>
         <ProposalFormatCards />
+      </section>
+
+      <section className="mt-10">
+        <Link
+          to="/rules"
+          className="block rounded-2xl border border-en-primary/30 bg-en-primary/8 p-5 transition-colors hover:border-en-primary/50 hover:bg-en-primary/12 md:p-6"
+        >
+          <p className="text-xs font-semibold text-en-accent">共通設定</p>
+          <h2 className="mt-1 text-lg font-semibold text-en-text">プロンプトルール（ロジック・3区分編集）</h2>
+          <p className="mt-2 text-sm text-en-muted">
+            8枚の構成説明、枚数が7枚になる条件、内容／デザインYAML／イラスト等のルールを確認・修正できます。
+          </p>
+        </Link>
       </section>
 
       <RecentCasesList items={history} className="mt-10" />

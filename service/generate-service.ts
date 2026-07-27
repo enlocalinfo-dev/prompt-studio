@@ -6,7 +6,8 @@ import { buildReferenceContext, type ReferenceBundle } from "./reference-context
 import { loadPromptStudioCore } from "./load-core.js";
 import { mergeSlideBriefs } from "./markdown-merge.js";
 import { applyTuningToBody } from "./apply-tuning-b.js";
-import type { TuningB } from "@prompt-studio/core";
+import { applyMasterRulesOnly } from "./apply-prompt-rules-b.js";
+import type { PromptRuleOverridesB, TuningB } from "@prompt-studio/core";
 
 type FormatId = "B";
 
@@ -35,6 +36,7 @@ async function generateFormatB(
   master: string,
   transcript: string,
   referenceContext: string,
+  ruleOverrides?: PromptRuleOverridesB,
   references?: ReferenceBundle,
 ): Promise<{ markdown: string; generationMode: "llm-slides" | "mock"; composeErrors: string[] }> {
   const composeErrors: string[] = [];
@@ -76,17 +78,20 @@ export async function runGenerate(body: {
   transcript: string;
   tuning: TuningB;
   references?: ReferenceBundle;
+  ruleOverrides?: PromptRuleOverridesB;
 }) {
   const core = await loadPromptStudioCore();
-  const { formatId, transcript, tuning, references } = body;
+  const { formatId, transcript, tuning, references, ruleOverrides } = body;
   const referenceContext = buildReferenceContext(references);
   const devLive = templatesLive();
   const anthropic = getAnthropic();
-  const master = loadMasterTemplate(formatId, devLive);
+  const masterRaw = loadMasterTemplate(formatId, devLive);
 
-  if (master.includes("テンプレ未同期") || master.length < 2000) {
+  if (masterRaw.includes("テンプレ未同期") || masterRaw.length < 2000) {
     throw new Error("B標準テンプレが読み込めません。デプロイ設定（service/template-snapshots）を確認してください。");
   }
+
+  const master = await applyMasterRulesOnly(masterRaw, tuning, ruleOverrides);
 
   const extractResult = await extractStructured(
     anthropic,
@@ -111,6 +116,7 @@ export async function runGenerate(body: {
       master,
       transcript ?? "",
       referenceContext,
+      ruleOverrides,
       references,
     );
     markdown = b.markdown;

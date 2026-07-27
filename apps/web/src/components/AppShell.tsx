@@ -1,10 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useHasPromptSession } from "../hooks/useHasPromptSession";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
-  const hasPrompt = useHasPromptSession();
 
   return (
     <div className="relative min-h-screen overflow-x-hidden en-mesh">
@@ -76,6 +74,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 />
               )}
               <span className="relative">プロンプト詳細</span>
+            </Link>
+            <Link
+              to="/rules"
+              className={`relative rounded-xl px-3 py-2 text-sm ${
+                loc.pathname === "/rules" ? "text-en-text" : "text-en-muted hover:text-en-text"
+              }`}
+            >
+              {loc.pathname === "/rules" && (
+                <motion.span
+                  layoutId="nav-rules"
+                  className="absolute inset-0 rounded-xl bg-white/8 ring-1 ring-white/5"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative">プロンプトルール</span>
             </Link>
           </div>
         </div>

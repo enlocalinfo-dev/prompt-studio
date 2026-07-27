@@ -1,5 +1,6 @@
 import type { TuningB } from "@prompt-studio/core";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { saveTuningB } from "../lib/storage";
 
 interface Props {
@@ -60,6 +61,11 @@ export function FineTunePanel({ tuning, onChange, disabled = false, fieldErrors 
         <p className="text-xs font-medium text-en-muted">出力オプション</p>
         <Toggle label="実質負担のスライドを含める" checked={tuning.netCostSlide} onChange={(v) => patch({ netCostSlide: v })} />
         <Toggle label="図解・イラストを多めに指示" checked={tuning.illustrationEmphasis} onChange={(v) => patch({ illustrationEmphasis: v })} />
+        <p className="pt-2 text-center text-[11px]">
+          <Link to="/rules" className="text-en-primary-bright hover:underline">
+            プロンプトルール（枚数・YAML・禁止事項）を編集
+          </Link>
+        </p>
       </div>
     </motion.div>
   );

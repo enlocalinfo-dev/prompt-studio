@@ -39,6 +39,7 @@ import {
   saveTuningB,
 } from "../lib/storage";
 import { navigateToPromptDetail } from "../lib/promptNavigation";
+import { loadPromptRuleOverrides } from "../lib/promptRuleStorage";
 
 const FORMAT_ID = "B" as const;
 
@@ -164,6 +165,7 @@ export function CreatePage() {
         transcript,
         tuning: input.tuning,
         references: input.references,
+        ruleOverrides: loadPromptRuleOverrides(),
       });
       const inline: InlinePromptResult = {
         markdown: result.markdown,
@@ -317,6 +319,11 @@ export function CreatePage() {
         <div className="mt-8">
           <ProposalFormatCards compact />
         </div>
+        <p className="mt-6 text-center text-sm">
+          <Link to="/rules" className="text-en-primary-bright hover:underline">
+            先にプロンプトルール（8枚のロジック・YAML）を確認・編集する
+          </Link>
+        </p>
         <RecentCasesList items={history} className="mt-10" />
       </motion.div>
     );

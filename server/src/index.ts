@@ -101,11 +101,12 @@ app.post("/api/expand-brief", async (req, res) => {
 
 app.post("/api/generate", async (req, res) => {
   try {
-    const { formatId, transcript, tuning, references } = req.body as {
+    const { formatId, transcript, tuning, references, ruleOverrides } = req.body as {
       formatId: FormatId;
       transcript: string;
       tuning: TuningB;
       references?: ReferenceBundle;
+      ruleOverrides?: import("@prompt-studio/core").PromptRuleOverridesB;
     };
     if (formatId !== "B") {
       res.status(400).json({
@@ -118,7 +119,7 @@ app.post("/api/generate", async (req, res) => {
       res.status(400).json({ error: "tuning.documentDate required" });
       return;
     }
-    const result = await runGenerate({ formatId: "B", transcript, tuning, references });
+    const result = await runGenerate({ formatId: "B", transcript, tuning, references, ruleOverrides });
     res.json(result);
   } catch (e) {
     console.error(e);

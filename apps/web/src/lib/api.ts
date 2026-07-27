@@ -60,6 +60,7 @@ export async function postGenerate(body: {
   transcript: string;
   tuning: Tuning;
   references?: ReferenceBundle;
+  ruleOverrides?: import("@prompt-studio/core").PromptRuleOverridesB;
 }): Promise<GenerateResponse> {
   const res = await fetch("/api/generate", {
     method: "POST",

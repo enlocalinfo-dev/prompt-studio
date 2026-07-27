@@ -7,3 +7,4 @@ export * from "./delivery-b-standard.js";
 export * from "./estimate-from-pdf.js";
 export * from "./design-system-parse.js";
 export * from "./slide-outline.js";
+export * from "./prompt-rules-b.js";
