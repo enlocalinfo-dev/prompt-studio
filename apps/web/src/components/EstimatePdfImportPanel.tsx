@@ -36,6 +36,7 @@ interface Props {
   onApplied: (payload: PdfAppliedPayload) => void;
   onAutoGenerate: (payload: PdfAppliedPayload) => Promise<InlinePromptResult>;
   onPhaseChange?: (phase: PdfPhase) => void;
+  onOpenPromptDetail?: () => void;
 }
 
 export function EstimatePdfImportPanel({
@@ -45,6 +46,7 @@ export function EstimatePdfImportPanel({
   onApplied,
   onAutoGenerate,
   onPhaseChange,
+  onOpenPromptDetail,
 }: Props) {
   const { pushSuccess, pushError } = useToast();
   const [phase, setPhaseState] = useState<PdfPhase>("idle");
@@ -119,7 +121,7 @@ export function EstimatePdfImportPanel({
         setPhase("generating");
         await onAutoGenerate(applied);
         setPhase("ready");
-        pushSuccess("提案用プロンプトが完成しました。下の「コピー」から Genspark へ進めます。");
+        pushSuccess("提案用プロンプトが完成しました。プロンプト詳細で YAML と8枚の内容を確認できます。");
       } catch (e) {
         const msg =
           e instanceof PdfTooLargeError
@@ -140,6 +142,12 @@ export function EstimatePdfImportPanel({
   useEffect(() => {
     onPhaseChange?.(phase);
   }, [onPhaseChange, phase]);
+
+  useEffect(() => {
+    if (promptResult && promptResult.segments.length > 0 && phase !== "parsing" && phase !== "generating") {
+      setPhase("ready");
+    }
+  }, [promptResult, phase, setPhase]);
 
   const showWorkspace = phase === "ready" && promptResult && promptResult.segments.length > 0;
 
@@ -239,6 +247,12 @@ export function EstimatePdfImportPanel({
       <Button variant="secondary" className="mt-3" disabled={busy} onClick={() => fileRef.current?.click()}>
         {lastFile ? "PDFを差し替え" : "PDFを選ぶ"}
       </Button>
+
+      {phase === "ready" && promptResult && onOpenPromptDetail && (
+        <Button className="mt-3 w-full !py-3 sm:w-auto" onClick={onOpenPromptDetail}>
+          プロンプト詳細を見る（YAML・8枚一覧）
+        </Button>
+      )}
 
       <AnimatePresence>
         {showWorkspace && promptResult && (

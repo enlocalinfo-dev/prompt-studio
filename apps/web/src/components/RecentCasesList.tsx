@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import type { HistoryEntry } from "../lib/storage";
-import { saveSession } from "../lib/storage";
 import { sessionFromHistory } from "../lib/historySession";
+import { navigateToPromptDetail } from "../lib/promptNavigation";
 import { Button } from "./ui/Button";
 
 export function RecentCasesList({ items, className }: { items: HistoryEntry[]; className?: string }) {
@@ -9,11 +9,10 @@ export function RecentCasesList({ items, className }: { items: HistoryEntry[]; c
 
   if (items.length === 0) return null;
 
-  function openPrompt(entry: HistoryEntry) {
+  function openPromptDetail(entry: HistoryEntry) {
     const session = sessionFromHistory(entry);
     if (!session) return;
-    saveSession(session);
-    nav("/result", { state: { session } });
+    navigateToPromptDetail(nav, session);
   }
 
   return (
@@ -34,27 +33,36 @@ export function RecentCasesList({ items, className }: { items: HistoryEntry[]; c
                   <p className="mt-0.5 truncate text-xs text-en-muted">
                     {h.projectTitle || "（研修名未設定）"} · {h.documentDate}
                   </p>
-                  {h.gensparkPreview && !hasPrompt && (
-                    <p className="mt-1 line-clamp-1 text-[10px] text-en-muted">{h.gensparkPreview}</p>
+                  {!hasPrompt && h.gensparkPreview && (
+                    <p className="mt-1 line-clamp-1 text-[10px] text-en-muted">
+                      {h.gensparkPreview}
+                      <span className="text-en-accent"> · 再作成するとプロンプト詳細を開けます</span>
+                    </p>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  {hasPrompt && (
-                    <Button
-                      type="button"
-                      className="!py-2 !text-xs"
-                      onClick={() => openPrompt(h)}
-                    >
-                      プロンプトを開く
+                  {hasPrompt ? (
+                    <Button type="button" className="!py-2 !text-xs" onClick={() => openPromptDetail(h)}>
+                      プロンプト詳細へ
                     </Button>
+                  ) : (
+                    <Link
+                      to="/create/b"
+                      state={{ restoreHistoryId: h.id }}
+                      className="inline-flex items-center justify-center rounded-xl bg-en-primary/90 px-3 py-2 text-xs font-medium text-en-on-primary transition-colors hover:bg-en-primary"
+                    >
+                      作成を再開
+                    </Link>
                   )}
-                  <Link
-                    to="/create/b"
-                    state={{ restoreHistoryId: h.id }}
-                    className="inline-flex items-center justify-center rounded-xl border border-en-border px-3 py-2 text-xs font-medium text-en-text transition-colors hover:border-en-primary/40 hover:bg-white/[0.04]"
-                  >
-                    {hasPrompt ? "入力を再開" : "続きから編集"}
-                  </Link>
+                  {hasPrompt && (
+                    <Link
+                      to="/create/b"
+                      state={{ restoreHistoryId: h.id }}
+                      className="inline-flex items-center justify-center rounded-xl border border-en-border px-3 py-2 text-xs font-medium text-en-text transition-colors hover:border-en-primary/40 hover:bg-white/[0.04]"
+                    >
+                      入力を修正
+                    </Link>
+                  )}
                 </div>
               </div>
             </li>

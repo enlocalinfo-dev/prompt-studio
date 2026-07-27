@@ -29,6 +29,7 @@ import {
   findHistory,
   loadExtraNotes,
   loadHistory,
+  loadSession,
   loadTrainingBrief,
   loadTuningB,
   pushHistory,
@@ -37,6 +38,7 @@ import {
   saveTrainingBrief,
   saveTuningB,
 } from "../lib/storage";
+import { navigateToPromptDetail } from "../lib/promptNavigation";
 
 const FORMAT_ID = "B" as const;
 
@@ -80,6 +82,23 @@ export function CreatePage() {
   const formLocked = pdfPhase === "parsing" || pdfPhase === "generating" || loading;
 
   useEffect(() => {
+    if (!showTrainingDeliveryFlow) return;
+    const session = loadSession();
+    const r = session?.result;
+    if (!r?.markdown && !r?.gensparkText) return;
+    const segments =
+      r.segments?.length && r.segments.length > 0 ? r.segments : parseGensparkPrompt(r.markdown);
+    setInlinePrompt({
+      markdown: r.markdown,
+      gensparkText: r.gensparkText,
+      folderNameSuggestion: r.folderNameSuggestion,
+      usedLlm: r.usedLlm,
+      segments,
+    });
+    setPdfLoaded(true);
+  }, [showTrainingDeliveryFlow]);
+
+  useEffect(() => {
     const id = (location.state as { restoreHistoryId?: string } | null)?.restoreHistoryId;
     if (!id) return;
     const h = findHistory(id);
@@ -90,6 +109,19 @@ export function CreatePage() {
     saveTuningB(h.tuning);
     setPdfLoaded(true);
     setStep2Open(true);
+    if (h.result?.markdown || h.result?.gensparkText) {
+      const segments =
+        h.result.segments?.length && h.result.segments.length > 0
+          ? h.result.segments
+          : parseGensparkPrompt(h.result.markdown ?? "");
+      setInlinePrompt({
+        markdown: h.result.markdown ?? "",
+        gensparkText: h.result.gensparkText,
+        folderNameSuggestion: h.result.folderNameSuggestion,
+        usedLlm: h.result.usedLlm,
+        segments,
+      });
+    }
     window.history.replaceState({}, "", location.pathname);
   }, [location.pathname, location.state]);
 
@@ -168,7 +200,7 @@ export function CreatePage() {
       });
       setInlinePrompt(inline);
       if (input.openResultPage) {
-        nav("/result", { replace: true, state: { session: payload } });
+        nav("/prompt", { replace: true, state: { session: payload } });
       }
       return inline;
     },
@@ -210,7 +242,7 @@ export function CreatePage() {
         extraNotes: mergedNotes,
         estimateSlideDetail: payload.slideDetail ?? "",
         references: refs,
-        openResultPage: false,
+        openResultPage: true,
       });
     },
     [extraNotes, references.urls, runGenerate],
@@ -335,6 +367,7 @@ export function CreatePage() {
           onApplied={handlePdfApplied}
           onAutoGenerate={handleAutoGenerateFromPdf}
           onPhaseChange={setPdfPhase}
+          onOpenPromptDetail={() => navigateToPromptDetail(nav)}
         />
 
         {!pdfLoaded && pdfPhase === "idle" && (
@@ -394,9 +427,9 @@ export function CreatePage() {
                           variant="secondary"
                           className="flex-1 !py-3.5"
                           disabled={!inlinePrompt}
-                          onClick={() => nav("/result")}
+                          onClick={() => navigateToPromptDetail(nav)}
                         >
-                          プレビューを大きく表示
+                          プロンプト詳細を見る
                         </Button>
                       </div>
                     </div>

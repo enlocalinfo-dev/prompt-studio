@@ -21,7 +21,8 @@ function AnimatedRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/create" element={<CreatePage />} />
           <Route path="/create/:formatId" element={<CreatePage />} />
-          <Route path="/result" element={<ResultPage />} />
+          <Route path="/prompt" element={<ResultPage />} />
+          <Route path="/result" element={<Navigate to="/prompt" replace />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

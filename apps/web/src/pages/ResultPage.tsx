@@ -76,12 +76,15 @@ export function ResultPage() {
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="pb-28"
       >
-        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create")}>
-          ← 作成に戻る
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create/b")}>
+          ← 作成画面に戻る
         </Button>
 
         <div className="mt-4">
-          <h1 className="text-2xl font-semibold tracking-tight">プレビュー</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">プロンプト詳細</h1>
+          <p className="mt-2 text-sm text-en-muted">
+            YAML・各スライドの■固稿・8枚一覧・見た目の予測を確認できます。
+          </p>
           <p className="mt-2 font-mono text-xs text-en-muted">{content.folderNameSuggestion}</p>
         </div>
 
