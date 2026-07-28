@@ -110,15 +110,31 @@ function mockExtractA(transcript: string): ExtractedA {
 }
 
 function mockExtractB(transcript: string): ExtractedB {
+  const scheduleBlock = (() => {
+    const start = transcript.indexOf("■見積書より（スライド5");
+    if (start === -1) return "";
+    const slice = transcript.slice(start, start + 1200);
+    const end = slice.indexOf("【スケジュール固定ルール】");
+    return (end > 0 ? slice.slice(0, end) : slice).replace(/\n+/g, " ").trim();
+  })();
+
+  const periodLine = transcript
+    .split("\n")
+    .find((l) => l.includes("【研修開始時期】") || (l.includes("研修開始") && l.includes("／")));
+
   return {
     formatId: "B",
     trainingName: "AI活用 営業プロセス改善研修",
     targetParticipants: transcript.slice(0, 200) || "BtoB営業・営業企画（人数は要確認）",
     trainingActivities: "全4回・伴走型（準備・提案・振り返り・運用ガイド）",
     beforeAfterSteps: "5ステップの Before/After（AI活用後を明示）",
-    scheduleNotes: transcript.includes("月")
-      ? transcript.split("\n").find((l) => l.includes("月"))?.slice(0, 200) ?? "社内決裁→申請締切→開始月（要日程調整）"
-      : "社内決裁→申請締切→開始月（要日程調整）",
+    scheduleNotes:
+      scheduleBlock ||
+      periodLine?.slice(0, 300) ||
+      (transcript.includes("月")
+        ? (transcript.split("\n").find((l) => l.includes("月") && /締切|開始|第/.test(l))?.slice(0, 200) ??
+          "社内決裁→申請締切→開始月（要日程調整）")
+        : "社内決裁→申請締切→開始月（要日程調整）"),
     roiNotes: "時間削減試算（前提明示・試算例）",
     netCostNotes: "助成差引後の実質負担（別スライド）",
   };

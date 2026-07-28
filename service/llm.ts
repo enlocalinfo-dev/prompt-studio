@@ -107,6 +107,20 @@ ${schemaHint(formatId)}`;
   }
 }
 
+function scheduleLockFromTranscript(transcript: string): string {
+  const marker = "■見積書より（スライド5";
+  const start = transcript.indexOf(marker);
+  if (start === -1) return "";
+  const after = transcript.slice(start);
+  const ruleIdx = after.indexOf("【スケジュール固定ルール】");
+  if (ruleIdx !== -1) {
+    const lineEnd = after.indexOf("\n", ruleIdx);
+    return after.slice(0, lineEnd > ruleIdx ? lineEnd : ruleIdx + 150).trim();
+  }
+  const next = after.indexOf("\n■", 1);
+  return after.slice(0, next > 0 ? next : 2200).trim();
+}
+
 export async function composeSlideBriefsWithLlm(
   client: Anthropic | null,
   formatId: FormatId,
@@ -123,12 +137,31 @@ export async function composeSlideBriefsWithLlm(
   const outline = slideHeadingsOutline(masterTemplate);
   const exampleSection = extractSlideBriefSection(masterTemplate).slice(0, 8000);
 
+  const scheduleLock =
+    formatId === "B"
+      ? scheduleLockFromTranscript(transcript) ||
+        (extracted.formatId === "B" && extracted.scheduleNotes
+          ? `structured_extract.scheduleNotes:\n${extracted.scheduleNotes}`
+          : "")
+      : "";
+
   const user = `formatId: ${formatId}
 tuning: ${JSON.stringify(tuning, null, 2)}
 structured_extract: ${JSON.stringify(extracted, null, 2)}
 
 Original user / meeting input (facts only — do not paste verbatim into slides):
 ${transcript.slice(0, 12000)}
+
+${
+  scheduleLock
+    ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━
+SCHEDULE LOCK (■スライド5 — 見積PDF優先・テンプレ日付禁止)
+━━━━━━━━━━━━━━━━━━━━━━━━━
+${scheduleLock}
+`
+    : ""
+}
 
 ${referenceContext ? `References:\n${referenceContext.slice(0, 20000)}\n` : ""}
 

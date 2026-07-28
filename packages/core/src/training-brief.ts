@@ -74,6 +74,7 @@ export function buildTrainingBriefTranscript(
   tuning: Pick<TuningB, "clientName" | "projectTitle" | "documentDate" | "proposerName">,
   extraNotes: string,
   estimateSlideDetail?: string,
+  estimateScheduleDetail?: string,
 ): string {
   const trainingName = tuning.projectTitle || "（研修名未入力）";
   const blocks = [
@@ -105,6 +106,14 @@ export function buildTrainingBriefTranscript(
   const parts: string[] = [base];
   if (estimateSlideDetail?.trim()) {
     parts.push("", "■見積書より（スライド②③の具体化）", estimateSlideDetail.trim());
+  }
+  if (estimateScheduleDetail?.trim()) {
+    parts.push(
+      "",
+      "■見積書より（スライド5・スケジュール／見積と完全一致）",
+      estimateScheduleDetail.trim(),
+      "【スケジュール固定ルール】■スライド5の日付・回次・締切は上記見積どおり。マスターテンプレの例示日（8月中旬・9月10日・10月開始等）に置き換えない。",
+    );
   }
   if (extra) {
     parts.push("", "■追加メモ", extra);

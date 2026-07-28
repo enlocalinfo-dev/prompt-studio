@@ -16,6 +16,7 @@ export type PdfAppliedPayload = {
   tuning: TuningB;
   document: ReferenceDocument;
   slideDetail?: string;
+  scheduleDetail?: string;
   notes?: string;
 };
 
@@ -108,6 +109,7 @@ export function EstimatePdfImportPanel({
           tuning: nextTuning,
           document: doc,
           slideDetail: expanded.trainingDetailForSlides,
+          scheduleDetail: expanded.scheduleForSlide5,
           notes: expanded.notes,
         };
 

@@ -22,6 +22,7 @@ Output quality:
 
 export const EXTRACT_SYSTEM = `You extract structured fields from Japanese meeting minutes or briefing notes for Genspark proposal authoring (EN Logical).
 Infer business proposal content; summarize; do not copy the entire transcript into one field.
+For format B: scheduleNotes MUST list exact dates/deadlines/session dates taken from 【研修開始時期】 and ■見積書より（スライド5） blocks when present. Never substitute template example months.
 Do not invent revenue share % or legal commitments.
 Return ONLY valid JSON matching the schema. No markdown fences. No commentary.`;
 
@@ -32,6 +33,8 @@ Rules:
 - **Do not shorten** bullet copy; keep リード/サブリード/補足/【図解】 per B standard (文案省略禁止).
 - Slide 6 = ROI time savings only; slide 7 = net cost / subsidy (never merge).
 - Slide 5 must label 申請締切 and 研修開始月 clearly.
+- **Slide 5 schedule authority**: If the user input contains 「■見積書より（スライド5」 or 【スケジュール固定ルール】, use ONLY those dates in ■スライド5. Delete/replace ALL template placeholder dates (例: 2026年8月15日, 9月10日, 10月第1回).
+- Match ガント axis months to the case dates (do not keep 8月→12月 if the estimate uses different months).
 - No emoji. Business Japanese.
 - Output ONLY ■ blocks—no YAML, no lock blocks, no raw transcript paste.`;
 

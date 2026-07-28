@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
 import {
   buildTrainingBriefTranscript,
+  defaultTrainingBrief,
   parseGensparkPrompt,
   referenceSummary,
 } from "@prompt-studio/core";
@@ -68,6 +69,7 @@ export function CreatePage() {
 
   const [extraNotes, setExtraNotes] = useState(() => loadExtraNotes());
   const [estimateSlideDetail, setEstimateSlideDetail] = useState("");
+  const [estimateScheduleDetail, setEstimateScheduleDetail] = useState("");
   const [brief, setBrief] = useState<TrainingDeliveryBrief>(() => loadTrainingBrief());
   const [references, setReferences] = useState<ReferenceBundle>(() => emptyReferences());
   const [tuning, setTuning] = useState<TuningB>(() => loadTuningB());
@@ -153,6 +155,7 @@ export function CreatePage() {
       tuning: TuningB;
       extraNotes: string;
       estimateSlideDetail: string;
+      estimateScheduleDetail: string;
       references: ReferenceBundle;
       openResultPage?: boolean;
     }): Promise<InlinePromptResult> => {
@@ -161,6 +164,7 @@ export function CreatePage() {
         input.tuning,
         input.extraNotes,
         input.estimateSlideDetail,
+        input.estimateScheduleDetail,
       );
       const result = await postGenerate({
         formatId: FORMAT_ID,
@@ -219,6 +223,13 @@ export function CreatePage() {
     setTuning(payload.tuning);
     saveTuningB(payload.tuning);
     setEstimateSlideDetail(payload.slideDetail ?? "");
+    const scheduleFromPdf =
+      payload.scheduleDetail?.trim() ||
+      (payload.brief.trainingStartPeriod?.trim() &&
+      payload.brief.trainingStartPeriod !== defaultTrainingBrief().trainingStartPeriod
+        ? payload.brief.trainingStartPeriod
+        : "");
+    setEstimateScheduleDetail(scheduleFromPdf);
     setPdfLoaded(true);
     setFieldErrors({});
     setBannerError(null);
@@ -242,11 +253,18 @@ export function CreatePage() {
         documents: [payload.document],
         urls: references.urls,
       };
+      const scheduleFromPdf =
+        payload.scheduleDetail?.trim() ||
+        (payload.brief.trainingStartPeriod?.trim() &&
+        payload.brief.trainingStartPeriod !== defaultTrainingBrief().trainingStartPeriod
+          ? payload.brief.trainingStartPeriod
+          : "");
       return runGenerate({
         brief: payload.brief,
         tuning: payload.tuning,
         extraNotes: mergedNotes,
         estimateSlideDetail: payload.slideDetail ?? "",
+        estimateScheduleDetail: scheduleFromPdf,
         references: refs,
         openResultPage: true,
       });
@@ -270,6 +288,7 @@ export function CreatePage() {
         tuning,
         extraNotes,
         estimateSlideDetail,
+        estimateScheduleDetail,
         references,
         openResultPage: false,
       });
