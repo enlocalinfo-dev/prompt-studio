@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ParsedDesignSystem, SlideOutlineItem } from "@prompt-studio/core";
 import { slidePreviewBulletLines } from "@prompt-studio/core";
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 type Props = {
   parsed: ParsedDesignSystem;
   slides: SlideOutlineItem[];
@@ -58,28 +60,37 @@ export function SlideDeckContentViewer({
   const roleLabel = current.sectionLabel.replace(/^スライド\d+｜/, "").trim();
 
   return (
-    <div className="flex h-full min-h-[420px] flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <p className="text-[10px] leading-relaxed text-en-muted">
         Google スライド風の<strong className="font-medium text-en-text">内容プレビュー</strong>
-        です。今回のプロンプトの■固稿から拾っています。
+        です。見出し・箇条・図解指示を、今回の■固稿からそのまま出しています。
       </p>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+      <div className="flex flex-col gap-3 lg:flex-row">
         <aside className="flex shrink-0 gap-2 overflow-x-auto pb-1 lg:w-[108px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
           {sorted.map((s, i) => {
             const active = i === index;
             const thumbCover = s.slideNumber === 1;
             return (
-              <button
+              <motion.button
                 key={s.slideNumber}
                 type="button"
                 onClick={() => go(i)}
-                className={`shrink-0 rounded-lg border p-1 transition-all lg:w-full ${
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                className={`relative shrink-0 rounded-lg border p-1 transition-colors lg:w-full ${
                   active
-                    ? "border-en-primary ring-2 ring-en-primary/40"
+                    ? "border-en-primary"
                     : "border-en-border opacity-80 hover:border-en-primary/40 hover:opacity-100"
                 }`}
               >
+                {active && (
+                  <motion.span
+                    layoutId="deck-thumb-ring"
+                    className="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-en-primary/40"
+                    transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                  />
+                )}
                 <div
                   className="aspect-video w-[88px] overflow-hidden rounded md:w-[96px] lg:w-full"
                   style={{
@@ -113,20 +124,20 @@ export function SlideDeckContentViewer({
                 <p className="mt-0.5 text-center font-mono text-[9px] text-en-muted">
                   {String(s.slideNumber).padStart(2, "0")}
                 </p>
-              </button>
+              </motion.button>
             );
           })}
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <AnimatePresence mode="wait">
             <motion.div
               key={current.slideNumber}
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.22 }}
-              className="aspect-video w-full max-w-3xl overflow-hidden rounded-xl border shadow-lg"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.28, ease: EASE }}
+              className="w-full rounded-xl border shadow-lg"
               style={{
                 borderColor: colors.dividerLine,
                 backgroundColor: colors.background,
@@ -147,22 +158,24 @@ export function SlideDeckContentViewer({
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-2">
-              <button
+              <motion.button
                 type="button"
                 disabled={index <= 0}
                 onClick={() => go(index - 1)}
+                whileTap={{ scale: 0.98 }}
                 className="rounded-lg border border-en-border px-3 py-1.5 text-xs text-en-text disabled:opacity-40"
               >
                 前へ
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 disabled={index >= total - 1}
                 onClick={() => go(index + 1)}
+                whileTap={{ scale: 0.98 }}
                 className="rounded-lg border border-en-border px-3 py-1.5 text-xs text-en-text disabled:opacity-40"
               >
                 次へ
-              </button>
+              </motion.button>
             </div>
             <p className="font-mono text-xs text-en-muted">
               {index + 1} / {total}
@@ -186,7 +199,7 @@ function CoverSlideFrame({
 }) {
   return (
     <div
-      className="flex h-full flex-col justify-end p-6 md:p-8"
+      className="flex flex-col justify-end p-6 md:p-8"
       style={{
         background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 55%, ${colors.background} 100%)`,
       }}
@@ -195,13 +208,18 @@ function CoverSlideFrame({
       <h3 className="mt-2 text-lg font-bold leading-snug text-white md:text-xl">{slide.headline}</h3>
       {slide.subline && <p className="mt-2 text-xs leading-relaxed text-white/85">{slide.subline}</p>}
       <ul className="mt-4 space-y-1.5 border-t border-white/20 pt-3">
-        {bullets.slice(0, 4).map((b) => (
+        {bullets.map((b) => (
           <li key={b} className="flex gap-2 text-[11px] leading-snug text-white/90">
             <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/70" />
             <span>{b}</span>
           </li>
         ))}
       </ul>
+      {slide.diagramNote && (
+        <p className="mt-4 rounded-lg bg-white/10 px-3 py-2 text-[11px] leading-relaxed text-white/90">
+          図解：{slide.diagramNote}
+        </p>
+      )}
     </div>
   );
 }
@@ -218,7 +236,7 @@ function ContentSlideFrame({
   roleLabel: string;
 }) {
   return (
-    <div className="flex h-full flex-col p-5 md:p-7">
+    <div className="flex flex-col p-5 md:p-7">
       <div className="flex items-start justify-between gap-2">
         <div className="h-1 w-10 rounded-full" style={{ backgroundColor: colors.accent }} />
         <span className="text-[10px] text-en-muted">{roleLabel}</span>
@@ -231,15 +249,22 @@ function ContentSlideFrame({
           {slide.subline}
         </p>
       )}
-      <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
+      <motion.ul
+        className="mt-4 space-y-2"
+        initial="hidden"
+        animate="show"
+        variants={{ show: { transition: { staggerChildren: 0.04 } } }}
+      >
         {bullets.length === 0 ? (
           <li className="text-[11px] leading-relaxed" style={{ color: colors.textSub }}>
             この枚の■固稿に、プレビュー用の箇条がありません。左の原文を確認してください。
           </li>
         ) : (
           bullets.map((b, i) => (
-            <li
+            <motion.li
               key={`${b}-${i}`}
+              variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.22, ease: EASE }}
               className="flex gap-2 text-[11px] leading-relaxed md:text-xs"
               style={{ color: colors.textMain }}
             >
@@ -248,23 +273,31 @@ function ContentSlideFrame({
                 style={{ backgroundColor: colors.secondary }}
               />
               <span>{b}</span>
-            </li>
+            </motion.li>
           ))
         )}
-      </ul>
-      <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: colors.dividerLine }}>
-        <div
-          className="h-10 rounded border"
-          style={{ borderColor: colors.dividerLine, backgroundColor: colors.backgroundLight }}
-        />
-        <div
-          className="col-span-2 h-10 rounded border"
-          style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
-        />
+      </motion.ul>
+      <div
+        className="mt-5 rounded-xl border p-3 md:p-4"
+        style={{ borderColor: colors.dividerLine, backgroundColor: colors.backgroundLight }}
+      >
+        <p className="text-[10px] font-semibold" style={{ color: colors.primary }}>
+          図解
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <div
+            className="min-h-16 rounded-lg border"
+            style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
+          />
+          <div
+            className="col-span-2 min-h-16 rounded-lg border"
+            style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
+          />
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: colors.textMain }}>
+          {slide.diagramNote || "この枚の■固稿に【図解】行がありません。左の原文を確認してください。"}
+        </p>
       </div>
-      <p className="mt-1 text-[9px]" style={{ color: colors.textSub }}>
-        図解エリア（プレビューでは線画ブロックのみ）
-      </p>
     </div>
   );
 }

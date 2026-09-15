@@ -11,6 +11,8 @@ export interface SlideOutlineItem {
   subline?: string;
   /** ■固稿から抽出した箇条書き（プレビュー用） */
   bullets: string[];
+  /** 【図解】行。プレビュー下部に出す */
+  diagramNote?: string;
 }
 
 const TEMPLATE_HEADLINES = [
@@ -45,10 +47,14 @@ function isTemplateHeadline(value: string | undefined): boolean {
   return TEMPLATE_HEADLINES.some((t) => v.includes(t) || t.includes(v));
 }
 
+function isDiagramLine(value: string): boolean {
+  return /【図解/.test(value.trim());
+}
+
 function isInstructionLine(value: string): boolean {
   const t = value.trim();
   if (!t) return false;
-  if (t.startsWith("【図解")) return true;
+  if (isDiagramLine(t)) return true;
   if (/対象・回数ロック|スケジュール固定ルール|入力ルール/.test(t)) return true;
   if (/見積に無い場合/.test(t)) return true;
   if (/^禁止[：:]/.test(t)) return true;
@@ -88,7 +94,21 @@ function bulletValue(bodies: string[], prefixes: string[]): string | undefined {
   return undefined;
 }
 
-function extractBullets(bodies: string[], max = 10): string[] {
+function extractDiagramNote(block: string): string | undefined {
+  const notes: string[] = [];
+  for (const line of block.split("\n")) {
+    const t = line.trim().replace(/^-\s*/, "");
+    if (!isDiagramLine(t)) continue;
+    const body = t
+      .replace(/^【図解(?:イメージ)?】/, "")
+      .replace(/^[：:\s]+/, "")
+      .trim();
+    if (body) notes.push(body);
+  }
+  return notes.join(" ") || undefined;
+}
+
+function extractBullets(bodies: string[], max = 20): string[] {
   const bullets: string[] = [];
   for (const raw of bodies) {
     let body = raw;
@@ -130,7 +150,7 @@ export function slidePreviewBulletLines(item: SlideOutlineItem): string[] {
     return true;
   });
 
-  if (uniq.length > 0) return uniq.slice(0, 6);
+  if (uniq.length > 0) return uniq.slice(0, 16);
   if (headline && !isTemplateHeadline(headline) && !isInstructionLine(headline)) return [headline];
   return [];
 }
@@ -175,6 +195,7 @@ export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutli
       headline,
       subline,
       bullets: extractBullets(bodies),
+      diagramNote: extractDiagramNote(body),
     });
   }
 

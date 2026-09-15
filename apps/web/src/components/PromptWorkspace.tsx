@@ -120,7 +120,7 @@ export function PromptWorkspace({
               </pre>
             </div>
 
-            <div className="flex min-h-[360px] flex-col p-4 md:p-6 xl:min-h-[520px]">
+            <div className="flex min-h-[360px] flex-col p-4 md:p-6 xl:min-h-0">
               <span className="mb-3 text-xs font-semibold text-en-text">スライド内容プレビュー（全枚）</span>
               <SlideDeckContentViewer
                 key={contentKey}
