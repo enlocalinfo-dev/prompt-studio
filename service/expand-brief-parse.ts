@@ -1,7 +1,10 @@
 import {
   composeTrainingStartPeriodFromSchedule,
   extractScheduleFromEstimateText,
+  inferEstimateDeliveryFacts,
   inferTrainingNameFromEstimate,
+  isSampleAudienceText,
+  isSampleSessionPlan,
   isUsableTrainingName,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
@@ -10,7 +13,7 @@ const JSON_SCHEMA = `{
   "clientName": "提案先（株式会社〇〇様）",
   "projectTitle": "見積の件名またはサービス名・品名（必須。型紙の見本研修名は使わない）",
   "documentDate": "見積日または資料版日（YYYY年M月D日）",
-  "targetParticipants": "研修対象者（人数・役割・前提）",
+  "targetParticipants": "見積の受講対象・人数・役割（必須。型紙の15名＋企画2名は見積に無い限り使わない）",
   "trainingStartPeriod": "開始時期・決裁/申請締切/キックオフ（見積・備考から）",
   "scheduleInternalDecision": "社内決裁期限（見積・備考。なければ空）",
   "scheduleSubsidyDeadline": "助成申請締切（見積・備考。なければ空）",
@@ -20,7 +23,7 @@ const JSON_SCHEMA = `{
   "mainEffects": "主な効果・ROIの要約（試算があれば記載、保証しない注記）",
   "trainingFeeExTax": "研修費税抜（見積金額）",
   "subsidyAndNet": "助成・差引・1人あたり（見積にあれば。なければ空文字）",
-  "trainingDetailForSlides": "スライド2-3用：回数・カリキュラム・成果物の箇条書き",
+  "trainingDetailForSlides": "スライド3用：見積の回数・各回テーマ・時間（型紙の全4回見本は使わない）",
   "notes": "不足・要確認事項"
 }`;
 
@@ -84,6 +87,17 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
     projectTitle = inferTrainingNameFromEstimate(source) || projectTitle;
   }
 
+  const facts = inferEstimateDeliveryFacts(source);
+  let targetParticipants = String(obj.targetParticipants ?? "").trim();
+  if (!targetParticipants || (isSampleAudienceText(targetParticipants) && !isSampleAudienceText(source))) {
+    targetParticipants = facts.audienceLine || targetParticipants;
+  }
+
+  let trainingDetailForSlides = String(obj.trainingDetailForSlides ?? "").trim();
+  if (!trainingDetailForSlides || (isSampleSessionPlan(trainingDetailForSlides) && !isSampleSessionPlan(source))) {
+    trainingDetailForSlides = facts.sessionDetail || trainingDetailForSlides;
+  }
+
   return {
     tuning: {
       clientName: obj.clientName,
@@ -91,13 +105,13 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
       documentDate: obj.documentDate,
     },
     brief: {
-      targetParticipants: obj.targetParticipants,
+      targetParticipants,
       trainingStartPeriod,
       mainEffects: obj.mainEffects,
       trainingFeeExTax: obj.trainingFeeExTax,
       subsidyAndNet: obj.subsidyAndNet ?? "",
     },
-    trainingDetailForSlides: obj.trainingDetailForSlides,
+    trainingDetailForSlides: trainingDetailForSlides || undefined,
     scheduleForSlide5: scheduleForSlide5 || undefined,
     notes: obj.notes,
   };

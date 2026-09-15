@@ -77,10 +77,10 @@ export function TrainingDeliveryBriefForm({
 
       <Field
         label="研修対象者（必須）"
-        hint="人数・部署・前提（スライド2）"
+        hint="見積の人数・対象部署（スライド2）"
         value={brief.targetParticipants}
         onChange={(v) => patch({ targetParticipants: v })}
-        placeholder="例：営業15名＋企画2名。商談経験あり。"
+        placeholder="見積の受講対象・人数"
         disabled={disabled}
       />
 

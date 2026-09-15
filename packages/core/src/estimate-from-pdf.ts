@@ -152,6 +152,113 @@ export function inferTrainingNameFromEstimate(text: string, fileName?: string): 
   return "";
 }
 
+export type EstimateDeliveryFacts = {
+  headcount: number | null;
+  sessionCount: number | null;
+  sessionHours: string;
+  targetRole: string;
+  sessionLines: string[];
+  audienceLine: string;
+  sessionDetail: string;
+};
+
+function toAsciiDigits(s: string): string {
+  return s.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+}
+
+function toCount(s: string): number {
+  return Number(toAsciiDigits(s));
+}
+
+/** 型紙見本の対象者（15名＋企画2名） */
+export function isSampleAudienceText(value: string | undefined | null): boolean {
+  if (!value?.trim()) return false;
+  const c = value.replace(/\s+/g, "");
+  return c.includes("15名") && (c.includes("営業企画") || c.includes("東日本営業") || c.includes("BtoBフィールド営業"));
+}
+
+/** 型紙見本の全4回カリキュラム */
+export function isSampleSessionPlan(value: string | undefined | null): boolean {
+  if (!value?.trim()) return false;
+  const c = value.replace(/\s+/g, "");
+  return c.includes("全4回") && (c.includes("商談準備") || c.includes("運用ガイド"));
+}
+
+/**
+ * 見積本文から人数・回数・対象・各回を拾う。
+ * 型紙の15名／2名／17名／全4回は、PDFにその数字が無い限り使わない。
+ */
+export function inferEstimateDeliveryFacts(text: string): EstimateDeliveryFacts {
+  const source = text ?? "";
+
+  const labeledHead = source.match(/(?:受講|対象人数|定員|人数)[^\d０-９]{0,12}([0-9０-９]{1,3})\s*名/);
+  const allHeads = [...source.matchAll(/([0-9０-９]{1,3})\s*名/g)].map((m) => toCount(m[1])).filter((n) => n >= 1 && n <= 400);
+  let headcount: number | null = labeledHead ? toCount(labeledHead[1]) : null;
+  if (headcount == null && allHeads.length) {
+    const withoutTiny = allHeads.filter((n) => n !== 2 || allHeads.some((x) => x >= 5));
+    headcount = Math.max(...(withoutTiny.length ? withoutTiny : allHeads));
+  }
+  const sessionLines = [...source.matchAll(/第[0-9０-９]+回[^\n]{0,80}/g)]
+    .map((m) => m[0].replace(/\s+/g, " ").trim())
+    .filter((l) => l.length > 3);
+
+  const allKai = source.match(/全\s*([0-9０-９]+)\s*回/);
+  const labeledKai = source.match(/(?:回数|実施回数)[^\d０-９]{0,8}([0-9０-９]+)\s*回/);
+  const days = source.match(/([0-9０-９]+)\s*日間/);
+  const numbered = [...source.matchAll(/第[0-9０-９]+回/g)];
+  let sessionCount: number | null = null;
+  if (allKai) sessionCount = toCount(allKai[1]);
+  else if (labeledKai) sessionCount = toCount(labeledKai[1]);
+  else if (days) sessionCount = toCount(days[1]);
+  else if (numbered.length >= 1) sessionCount = numbered.length;
+  if (sessionCount === 4 && !/全\s*[4４]\s*回/.test(source) && numbered.length !== 4 && !labeledKai && !days) {
+    sessionCount = numbered.length || null;
+  }
+
+  const hoursMatch =
+    source.match(/(?:各回|1回あたり|一回)[^\n]{0,8}([0-9０-９]+(?:\.[0-9]+)?)\s*時間/) ??
+    source.match(/各回\s*([0-9０-９]+)\s*分/) ??
+    source.match(/([0-9０-９]+)\s*分\s*[×x／/]/);
+  const sessionHours = hoursMatch ? hoursMatch[0].replace(/\s+/g, "") : "";
+
+  const roleLabeled =
+    source.match(/(?:受講対象|対象者|対象)[：:\s　]+([^\n]{3,60})/) ??
+    source.match(/(?:受講対象|対象者|対象)\n+([^\n]{3,60})/);
+  let targetRole = "";
+  if (roleLabeled?.[1] && !/対象外|税|円|回/.test(roleLabeled[1])) {
+    targetRole = roleLabeled[1].replace(/^[：:\s　]+/, "").trim();
+  }
+  if (!targetRole) {
+    const roleHit = source.match(/((?:経営層|管理職|マネージャー|リーダー|人事|エンジニア|企画|営業(?!企画2名))[^\n]{0,20})/);
+    if (roleHit?.[1] && !/営業企画\s*\*?2名/.test(roleHit[1])) targetRole = roleHit[1].trim();
+  }
+
+  const uniqueSessions = [...new Set(sessionLines)].slice(0, 10);
+
+  const audienceLine = [targetRole, headcount != null ? `${headcount}名（見積より）` : ""]
+    .filter(Boolean)
+    .join("／")
+    .replace(/／+/g, "／");
+
+  const sessionDetail = [
+    sessionCount != null ? `全${sessionCount}回（見積より）` : "",
+    sessionHours,
+    ...uniqueSessions,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    headcount,
+    sessionCount,
+    sessionHours,
+    targetRole,
+    sessionLines: uniqueSessions,
+    audienceLine,
+    sessionDetail,
+  };
+}
+
 /** 見積PDFテキストからの簡易抽出（LLM前のたたき台） */
 export function heuristicParseEstimateText(text: string, fileName?: string): ExpandedFromEstimate {
   const out: ExpandedFromEstimate = { tuning: {}, brief: {}, trainingDetailForSlides: "" };
@@ -181,15 +288,9 @@ export function heuristicParseEstimateText(text: string, fileName?: string): Exp
     text.match(/([\d,]+)\s*円\s*(?:\(税抜\)|税抜)/)?.[1];
   if (yen) out.brief.trainingFeeExTax = `${yen.replace(/,/g, "")}円（見積より）`;
 
-  const people = text.match(/(\d+)\s*名/)?.[1];
-  if (people) {
-    out.brief.targetParticipants = `受講 ${people}名（見積より。部署・役割は要確認）`;
-  }
-
-  const sessions = text.match(/第[0-9０-９]+回[^\n]+/g);
-  if (sessions?.length) {
-    out.trainingDetailForSlides = sessions.slice(0, 8).join("\n");
-  }
+  const facts = inferEstimateDeliveryFacts(text);
+  if (facts.audienceLine) out.brief.targetParticipants = facts.audienceLine;
+  if (facts.sessionDetail) out.trainingDetailForSlides = facts.sessionDetail;
 
   out.brief.mainEffects =
     out.brief.mainEffects ??

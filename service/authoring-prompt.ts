@@ -24,6 +24,7 @@ export const EXTRACT_SYSTEM = `You extract structured fields from Japanese meeti
 Infer business proposal content; summarize; do not copy the entire transcript into one field.
 For format B: scheduleNotes MUST list exact dates/deadlines/session dates taken from 【研修開始時期】 and ■見積書より（スライド5） blocks when present. Never substitute template example months.
 For format B: trainingName MUST come from 研修名 / 件名 / サービス名 in the input. Never default to 「AI活用 営業プロセス改善研修」 unless that exact name is in the input.
+For format B: targetParticipants and trainingActivities MUST come from 【研修対象者】 and 回数/第N回 in the input. Never default to 15名+企画2名 or 全4回 unless those facts are in the input.
 Do not invent revenue share % or legal commitments.
 Return ONLY valid JSON matching the schema. No markdown fences. No commentary.`;
 
@@ -35,6 +36,8 @@ Rules:
 - Slide 6 = ROI time savings only; slide 7 = net cost / subsidy (never merge).
 - Slide 5 must label 申請締切 and 研修開始月 clearly.
 - Training name: use tuning.projectTitle (見積の件名・サービス名). NEVER copy 「AI活用 営業プロセス改善研修」 unless that exact phrase is in the user input.
+- Slide 2 audience: use 【研修対象者】 only. NEVER copy 15名 / 営業企画2名 / 東日本営業 unless those facts are in the user input.
+- Slide 3 sessions: use the estimate's 回数 and 第N回 themes. NEVER copy 全4回 or 商談準備→運用ガイド unless those are in the user input.
 - **Slide 5 schedule authority**: If the user input contains 「■見積書より（スライド5」 or 【スケジュール固定ルール】, use ONLY those dates in ■スライド5. Delete/replace ALL template placeholder dates (例: 2026年8月15日, 9月10日, 10月第1回).
 - Match ガント axis months to the case dates (do not keep 8月→12月 if the estimate uses different months).
 - No emoji. Business Japanese.

@@ -131,11 +131,24 @@ function mockExtractB(transcript: string): ExtractedB {
       ? nameFromTranscript.slice(0, 80)
       : "（見積の件名・サービス名）";
 
+  const targetFromTranscript =
+    transcript.match(/【研修対象者】[^\n]*\n([^\n]+)/)?.[1]?.trim() ||
+    "見積の対象者（人数・部署は見積に準拠）";
+  const activitiesFromTranscript =
+    (() => {
+      const start = transcript.indexOf("■見積書より（スライド②③");
+      if (start === -1) {
+        const kai = transcript.match(/全\s*[0-9０-９]+\s*回/);
+        return kai ? `${kai[0]}（見積より）` : "回数・各回テーマは見積に準拠";
+      }
+      return transcript.slice(start, start + 500).replace(/\n+/g, " ").trim();
+    })();
+
   return {
     formatId: "B",
     trainingName,
-    targetParticipants: transcript.slice(0, 200) || "BtoB営業・営業企画（人数は要確認）",
-    trainingActivities: "全4回・伴走型（準備・提案・振り返り・運用ガイド）",
+    targetParticipants: targetFromTranscript,
+    trainingActivities: activitiesFromTranscript,
     beforeAfterSteps: "5ステップの Before/After（AI活用後を明示）",
     scheduleNotes:
       scheduleBlock ||

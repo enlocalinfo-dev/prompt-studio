@@ -163,6 +163,15 @@ ${scheduleLock}
     : ""
 }
 
+━━━━━━━━━━━━━━━━━━━━━━━━━
+AUDIENCE / SESSION LOCK (■スライド2・3 — 見積優先)
+━━━━━━━━━━━━━━━━━━━━━━━━━
+- Slide 2 headcount / department: use ONLY 【研修対象者】 and estimate facts.
+- Forbidden unless present in the user input: 15名, 営業企画 2名, 東日本営業, 17名.
+- Slide 3 session count / themes: use ONLY ■見積書より（スライド②③） and 全N回 / 第N回 from the estimate.
+- Forbidden unless present in the user input: 全4回, 商談準備のAI化, 提案テンプレ1式, 運用ガイド（社内版）.
+
+
 ${referenceContext ? `References:\n${referenceContext.slice(0, 20000)}\n` : ""}
 
 Slide IDs to keep (same ■ labels and order):

@@ -47,11 +47,11 @@ export function normalizeTrainingBrief(raw: unknown): TrainingDeliveryBrief {
 
   if (typeof o.targetParticipants === "string") {
     return {
-      targetParticipants: o.targetParticipants || d.targetParticipants,
-      trainingStartPeriod: String(o.trainingStartPeriod ?? d.trainingStartPeriod),
-      mainEffects: String(o.mainEffects ?? d.mainEffects),
-      trainingFeeExTax: String(o.trainingFeeExTax ?? d.trainingFeeExTax),
-      subsidyAndNet: String(o.subsidyAndNet ?? d.subsidyAndNet),
+      targetParticipants: String(o.targetParticipants ?? ""),
+      trainingStartPeriod: String(o.trainingStartPeriod ?? ""),
+      mainEffects: String(o.mainEffects ?? ""),
+      trainingFeeExTax: String(o.trainingFeeExTax ?? ""),
+      subsidyAndNet: String(o.subsidyAndNet ?? ""),
     };
   }
 
@@ -96,7 +96,9 @@ export function buildTrainingBriefTranscript(
     `研修名：${trainingName}`,
     `資料版日：${tuning.documentDate}`,
     "",
-    "■ 入力（以下3点をスライド2・5・6の中心に反映。②③④の細部はB標準■固稿をベースに整合させる）",
+    "■ 入力（見積の事実を優先。型紙の人数・回数・カリキュラムは見積に無い限り使わない）",
+    "【対象・回数ロック】スライド2の人数・部署は下記【研修対象者】のみ。禁止：15名／営業企画2名／東日本営業（見積に無い場合）。",
+    "【対象・回数ロック】スライド3の回数・各回テーマは■見積書より（スライド②③）のみ。禁止：全4回・商談準備〜運用ガイドの見本（見積に無い場合）。",
     "",
     "【研修対象者】（スライド2・①）",
     brief.targetParticipants,

@@ -5,9 +5,14 @@ import { loadMasterTemplate } from "./templates.js";
 import { buildReferenceContext, type ReferenceBundle } from "./reference-context.js";
 import { loadPromptStudioCore } from "./load-core.js";
 import { mergeSlideBriefs } from "./markdown-merge.js";
-import { applyTuningToBody } from "./apply-tuning-b.js";
+import { applyEstimateFactsToBody, applyTuningToBody } from "./apply-tuning-b.js";
 import { applyMasterRulesOnly } from "./apply-prompt-rules-b.js";
-import type { PromptRuleOverridesB, TuningB } from "@prompt-studio/core";
+import {
+  inferEstimateDeliveryFacts,
+  isSampleAudienceText,
+  type PromptRuleOverridesB,
+  type TuningB,
+} from "@prompt-studio/core";
 
 type FormatId = "B";
 
@@ -19,6 +24,13 @@ function getAnthropic(): Anthropic | null {
 function templatesLive(): boolean {
   if (process.env.VERCEL === "1") return false;
   return process.env.TEMPLATES_LIVE !== "false";
+}
+
+function tuneDeliveryBody(master: string, tuning: TuningB, source: string): string {
+  const facts = inferEstimateDeliveryFacts(source);
+  const audience = source.match(/【研修対象者】[^\n]*\n([^\n]+)/)?.[1]?.trim();
+  if (audience && !isSampleAudienceText(audience)) facts.audienceLine = audience;
+  return applyEstimateFactsToBody(applyTuningToBody(master, tuning), facts, source);
 }
 
 function resolveGensparkText(core: Awaited<ReturnType<typeof loadPromptStudioCore>>, markdown: string, masterTuned: string): string {
@@ -63,7 +75,7 @@ async function generateFormatB(
     }
   }
 
-  const masterTuned = applyTuningToBody(mergedMaster, tuning);
+  const masterTuned = tuneDeliveryBody(mergedMaster, tuning, `${transcript}\n${referenceContext}`);
   const markdown = core.composeMarkdown("B", structured, tuning, masterTuned, references);
 
   if (!core.extractGensparkText(markdown) && masterTuned.length > 500) {
@@ -141,9 +153,10 @@ export async function runGenerate(body: {
   }
 
   if (!markdown.trim()) {
-    const fallbackBody = applyTuningToBody(
+    const fallbackBody = tuneDeliveryBody(
       core.composeMarkdown(formatId, structured, tuning, master, references),
       tuning,
+      `${transcript ?? ""}\n${referenceContext}`,
     );
     if (fallbackBody.trim().length > 400) {
       markdown = fallbackBody;
@@ -163,7 +176,11 @@ export async function runGenerate(body: {
     }
   }
 
-  const gensparkText = resolveGensparkText(core, markdown, applyTuningToBody(master, tuning));
+  const gensparkText = resolveGensparkText(
+    core,
+    markdown,
+    tuneDeliveryBody(master, tuning, `${transcript ?? ""}\n${referenceContext}`),
+  );
 
   if (gensparkText.length < 500) {
     throw new Error(

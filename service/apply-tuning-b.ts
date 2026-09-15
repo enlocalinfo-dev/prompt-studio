@@ -1,4 +1,5 @@
-import type { TuningB } from "@prompt-studio/core";
+import type { EstimateDeliveryFacts, TuningB } from "@prompt-studio/core";
+import { isSampleSessionPlan } from "@prompt-studio/core";
 
 /** B マスター内の案件固有表記を tuning で差し替え（■固稿・YAML・表記ロック） */
 export function applyTuningToBody(body: string, tuning: TuningB): string {
@@ -32,4 +33,68 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
   }
 
   return out;
+}
+
+/** 型紙の人数・回数・見本カリキュラムを、見積の事実で上書きする */
+export function applyEstimateFactsToBody(
+  body: string,
+  facts: EstimateDeliveryFacts,
+  sourceText: string,
+): string {
+  let out = body;
+  const src = sourceText ?? "";
+  const pdfHas = (re: RegExp) => re.test(src);
+
+  const n = facts.sessionCount;
+  if (n != null && n > 0) {
+    out = out.replace(/全4回/g, `全${n}回`);
+    out = out.replace(/全４回/g, `全${n}回`);
+    out = out.replace(/4回・17名/g, `${n}回・${facts.headcount != null ? `${facts.headcount}名` : "見積の人数"}`);
+  } else if (!pdfHas(/全\s*[4４]\s*回/)) {
+    out = out.replace(/伴走型・全4回/g, "見積の回数に準拠");
+    out = out.replace(/全4回/g, "見積記載の回数");
+    out = out.replace(/全４回/g, "見積記載の回数");
+  }
+
+  const h = facts.headcount;
+  const audience = facts.audienceLine.trim();
+  if (h != null && h > 0) {
+    if (!pdfHas(/17\s*名/)) out = out.replace(/17名/g, `${h}名`);
+    if (!pdfHas(/15\s*名/)) {
+      out = out.replace(/BtoBフィールド営業 \*\*15名\*\*（事業部：東日本営業）/g, audience || `受講 ${h}名（見積より）`);
+      out = out.replace(/\*\*15名\*\*/g, `**${h}名**`);
+      out = out.replace(/15名/g, `${h}名`);
+    }
+  } else if (audience && !isSampleLikeSource(src)) {
+    out = out.replace(/主対象：BtoBフィールド営業 \*\*15名\*\*（事業部：東日本営業）/g, `主対象：${audience}`);
+    if (!pdfHas(/17\s*名/)) out = out.replace(/17名/g, "見積の人数");
+    if (!pdfHas(/15\s*名/)) out = out.replace(/15名/g, "見積の人数");
+  } else if (!pdfHas(/15\s*名/) && !pdfHas(/17\s*名/)) {
+    out = out.replace(/主対象：BtoBフィールド営業 \*\*15名\*\*（事業部：東日本営業）/g, "主対象：見積の受講対象（人数は見積に準拠）");
+    out = out.replace(/15名/g, "見積の人数");
+    out = out.replace(/17名/g, "見積の人数");
+  }
+
+  if (!pdfHas(/営業企画/) || !pdfHas(/2\s*名/)) {
+    out = out.replace(/副対象：営業企画 \*\*2名\*\*（テンプレ整備・横展開担当）/g, audience ? `対象の内訳：${audience}` : "副対象：見積に部署内訳の記載がなければ省略");
+  }
+  if (!pdfHas(/東日本営業/)) {
+    out = out.replace(/東日本営業/g, "見積の対象部署");
+  }
+
+  if (facts.sessionDetail && !isSampleSessionPlan(facts.sessionDetail)) {
+    const detail = facts.sessionDetail.replace(/\n/g, "／");
+    out = out.replace(/第1回：商談準備のAI化（リサーチ・仮説・質問設計）→ 成果物：準備チェックリスト1式/g, `実施内容（見積）：${detail}`);
+    if (!pdfHas(/第2回：提案書/)) {
+      out = out.replace(/第2回：提案書・見積説明資料のたたき台生成 → 成果物：提案テンプレ1式\n/g, "");
+      out = out.replace(/第3回：議事録・振り返り・次アクションの自動化 → 成果物：振り返りフォーマット1式\n/g, "");
+      out = out.replace(/第4回：チーム展開・運用ルール・セキュリティ → 成果物：運用ガイド（社内版）\n/g, "");
+    }
+  }
+
+  return out;
+}
+
+function isSampleLikeSource(src: string): boolean {
+  return /BtoBフィールド営業/.test(src) && /15名/.test(src) && /営業企画/.test(src);
 }

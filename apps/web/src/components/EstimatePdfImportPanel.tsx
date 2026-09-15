@@ -2,7 +2,10 @@ import type { PromptSegment, ReferenceDocument, TrainingDeliveryBrief, TuningB }
 import {
   defaultTuning,
   emptyTrainingBrief,
+  inferEstimateDeliveryFacts,
   inferTrainingNameFromEstimate,
+  isSampleAudienceText,
+  isSampleSessionPlan,
   isUsableTrainingName,
   mergeExpandedIntoBrief,
 } from "@prompt-studio/core";
@@ -89,12 +92,26 @@ export function EstimatePdfImportPanel({
         const { expanded, usedLlm } = await postExpandBriefFromPdf(expandBody);
 
         const defaults = defaultTuning("B", todayJa()) as TuningB;
-        const nextBrief = mergeExpandedIntoBrief(emptyTrainingBrief(), expanded.brief ?? {});
+        const facts = inferEstimateDeliveryFacts(extractedText);
+        const mergedBrief = mergeExpandedIntoBrief(emptyTrainingBrief(), expanded.brief ?? {});
+        const nextBrief = {
+          ...mergedBrief,
+          targetParticipants:
+            mergedBrief.targetParticipants &&
+            !isSampleAudienceText(mergedBrief.targetParticipants)
+              ? mergedBrief.targetParticipants
+              : facts.audienceLine || mergedBrief.targetParticipants,
+        };
         const inferredTitle = inferTrainingNameFromEstimate(extractedText, file.name);
         const extractedTitle = expanded.tuning?.projectTitle?.trim() || "";
         const projectTitle = isUsableTrainingName(extractedTitle, extractedText)
           ? extractedTitle
           : inferredTitle || extractedTitle;
+        const slideDetailRaw = expanded.trainingDetailForSlides?.trim() || "";
+        const slideDetail =
+          slideDetailRaw && !isSampleSessionPlan(slideDetailRaw)
+            ? slideDetailRaw
+            : facts.sessionDetail || slideDetailRaw;
         const nextTuning: TuningB = {
           ...defaults,
           clientName: expanded.tuning?.clientName?.trim() || "",
@@ -118,7 +135,7 @@ export function EstimatePdfImportPanel({
           brief: nextBrief,
           tuning: nextTuning,
           document: doc,
-          slideDetail: expanded.trainingDetailForSlides,
+          slideDetail,
           scheduleDetail: expanded.scheduleForSlide5,
           notes: expanded.notes,
         };

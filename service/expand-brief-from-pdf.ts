@@ -59,6 +59,10 @@ Training name (CRITICAL for projectTitle):
 - projectTitle is REQUIRED. Take it from 件名, 題名, サービス名, 品名, 品目, コース名, 講座名, or the first training item in the table.
 - Never output the template sample name 「AI活用 営業プロセス改善研修」 unless that exact phrase appears in the PDF.
 
+Audience and sessions (CRITICAL):
+- targetParticipants MUST come from 受講対象 / 対象者 / 人数 / 定員 in the PDF. Never use 15名 + 営業企画2名 / 東日本営業 unless those exact facts appear in the PDF.
+- trainingDetailForSlides MUST list the PDF's 回数 (全N回 / 第N回) and each session theme. Never copy the template 全4回 curriculum (商談準備→提案書→議事録→運用ガイド) unless the PDF says so.
+
 Output ONLY valid JSON matching the schema.`;
 
   const userText = `File: ${fileName}
