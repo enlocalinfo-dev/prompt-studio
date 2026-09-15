@@ -25,6 +25,12 @@ export function PromptWorkspace({
 }) {
   const [activeId, setActiveId] = useState(segments[0]?.id ?? "");
   const [deckSlide, setDeckSlide] = useState<number | undefined>(undefined);
+  const contentKey = `${gensparkText.length}:${gensparkText.slice(0, 80)}`;
+
+  useEffect(() => {
+    setActiveId(segments[0]?.id ?? "");
+    setDeckSlide(undefined);
+  }, [contentKey]);
   const active = useMemo(
     () => segments.find((s) => s.id === activeId) ?? segments[0],
     [activeId, segments],
@@ -117,6 +123,7 @@ export function PromptWorkspace({
             <div className="flex min-h-[360px] flex-col p-4 md:p-6 xl:min-h-[520px]">
               <span className="mb-3 text-xs font-semibold text-en-text">スライド内容プレビュー（全枚）</span>
               <SlideDeckContentViewer
+                key={contentKey}
                 parsed={designParsed}
                 slides={slideOutline}
                 activeSlideNumber={highlightSlide}

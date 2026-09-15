@@ -13,11 +13,61 @@ export interface SlideOutlineItem {
   bullets: string[];
 }
 
-function bulletValue(block: string, prefixes: string[]): string | undefined {
+const TEMPLATE_HEADLINES = [
+  "受講対象——現場営業と企画が同じ型を持つ",
+  "全4回——学ぶより「自社の型を作る」伴走",
+  "目指すのは「AI後」の営業プロセス",
+  "社内決裁と助成申請——いつまでに何を終えるか",
+  "時間削減の試算——前提を明示したうえでの効果イメージ",
+  "助成金を踏まえた実質負担——社内決裁用のコスト整理",
+  "次のステップ——決裁からキックオフまで",
+  "AI活用 営業プロセス改善研修 ご提案",
+];
+
+const DISTINCTIVE_PREFIXES = [
+  "主対象",
+  "対象の内訳",
+  "提案先",
+  "タイトル",
+  "第1回",
+  "実施内容",
+  "研修費",
+  "助成見込み",
+  "本提案の社内決裁",
+  "研修開始月",
+  "効果仮定",
+  "チェック1",
+];
+
+function isTemplateHeadline(value: string | undefined): boolean {
+  const v = (value ?? "").trim();
+  if (!v) return false;
+  return TEMPLATE_HEADLINES.some((t) => v.includes(t) || t.includes(v));
+}
+
+function stripPrefix(body: string): string {
+  return body.replace(/^[【\s]*[^：:]{1,16}[：:]\s*/, "").trim();
+}
+
+function lineBodies(block: string): string[] {
+  const out: string[] = [];
   for (const line of block.split("\n")) {
     const t = line.trim();
-    if (!t.startsWith("-")) continue;
-    const body = t.replace(/^-\s*/, "");
+    if (!t || t.startsWith("【図解")) continue;
+    if (t.startsWith("-")) {
+      const body = t.replace(/^-\s*/, "").trim();
+      if (body) out.push(body);
+      continue;
+    }
+    if (/^(見出し|タイトル|リード|サブリード|サブ|主対象|副対象|対象の内訳|第[0-9０-９]+回|提案先|研修費|実施内容)/.test(t)) {
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+function bulletValue(bodies: string[], prefixes: string[]): string | undefined {
+  for (const body of bodies) {
     for (const p of prefixes) {
       if (body.startsWith(p)) {
         return body.slice(p.length).replace(/^[：:\s]+/, "").trim();
@@ -27,12 +77,10 @@ function bulletValue(block: string, prefixes: string[]): string | undefined {
   return undefined;
 }
 
-function extractBullets(block: string, max = 8): string[] {
+function extractBullets(bodies: string[], max = 10): string[] {
   const bullets: string[] = [];
-  for (const line of block.split("\n")) {
-    const t = line.trim();
-    if (!t.startsWith("-")) continue;
-    let body = t.replace(/^-\s*/, "").trim();
+  for (const raw of bodies) {
+    let body = raw;
     if (!body || body.startsWith("【図解")) continue;
     if (body.length > 160) body = `${body.slice(0, 160)}…`;
     bullets.push(body);
@@ -41,11 +89,12 @@ function extractBullets(block: string, max = 8): string[] {
   return bullets;
 }
 
-function firstBullet(block: string): string | undefined {
-  for (const line of block.split("\n")) {
-    const t = line.trim();
-    if (t.startsWith("-") && !t.startsWith("- 【")) {
-      return t.replace(/^-\s*/, "").slice(0, 120);
+function pickDistinctive(bodies: string[]): string | undefined {
+  for (const p of DISTINCTIVE_PREFIXES) {
+    const hit = bodies.find((b) => b.startsWith(p));
+    if (hit) {
+      const v = stripPrefix(hit);
+      if (v.length >= 3) return v.slice(0, 80);
     }
   }
   return undefined;
@@ -56,28 +105,21 @@ function parseSlideNumber(labelLine: string): number {
   return m?.[1] ? Number.parseInt(m[1], 10) : 0;
 }
 
-/** プレビュー用：不足分はプレースホルダー箇条書きで補う */
+/** プレビュー用：固稿の箇条を優先。同じ仮文言で全枚を埋めない */
 export function slidePreviewBulletLines(item: SlideOutlineItem): string[] {
   const fromBrief = item.bullets.filter((b) => b.length > 0 && !b.startsWith("【"));
-  const seed = [item.headline, item.subline, ...fromBrief].filter(
-    (s): s is string => Boolean(s?.trim()),
-  );
-  const uniq = [...new Set(seed.map((s) => s.trim()))];
   const headline = item.headline?.trim();
   const sub = item.subline?.trim();
+  const uniq = [...new Set(fromBrief.map((s) => s.trim()))].filter((line) => {
+    if (!line) return false;
+    if (line === headline || line === sub) return false;
+    if (headline && stripPrefix(line) === headline) return false;
+    return true;
+  });
 
-  const placeholders = [
-    "ここに、このスライド向けの箇条書きが追加されていきます",
-    "見積・入力を反映すると内容が具体化されます",
-    "Genspark 実行後に図解・レイアウトが載ります",
-  ];
-
-  const out = uniq.filter((line) => line !== headline && line !== sub);
-  for (const p of placeholders) {
-    if (out.length >= 5) break;
-    if (!out.some((x) => x.includes(p.slice(0, 8)))) out.push(p);
-  }
-  return out.slice(0, 6);
+  if (uniq.length > 0) return uniq.slice(0, 6);
+  if (headline && !isTemplateHeadline(headline)) return [headline];
+  return [];
 }
 
 export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutlineItem[] {
@@ -93,14 +135,17 @@ export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutli
     if (/^S\d|区切り|｜0[1-5]\s/.test(headLine)) continue;
 
     const body = lines.slice(1).join("\n");
-    const headline =
-      bulletValue(body, ["見出し", "タイトル", "1行サマリー", "チェック1"]) ??
-      firstBullet(body) ??
-      headLine;
+    const bodies = lineBodies(body);
+    const labeledHeadline = bulletValue(bodies, ["見出し", "タイトル", "1行サマリー"]);
+    const distinctive = pickDistinctive(bodies);
+    const first = bodies[0] ? stripPrefix(bodies[0]) : undefined;
+
+    let headline = labeledHeadline ?? distinctive ?? first ?? headLine;
+    if (isTemplateHeadline(headline) && distinctive) headline = distinctive;
 
     const subline =
-      bulletValue(body, ["リード", "サブリード", "サブ"]) ??
-      bulletValue(body, ["チェック2"]);
+      bulletValue(bodies, ["リード", "サブリード", "サブ"]) ??
+      (distinctive && distinctive !== headline ? distinctive : undefined);
 
     const slideNumber = parseSlideNumber(headLine) || items.length + 1;
 
@@ -109,7 +154,7 @@ export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutli
       sectionLabel: headLine,
       headline,
       subline,
-      bullets: extractBullets(body),
+      bullets: extractBullets(bodies),
     });
   }
 

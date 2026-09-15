@@ -241,6 +241,7 @@ export function CreatePage() {
   );
 
   const handlePdfApplied = useCallback((payload: PdfAppliedPayload) => {
+    setInlinePrompt(null);
     setBrief(payload.brief);
     saveTrainingBrief(payload.brief);
     setTuning(payload.tuning);

@@ -61,7 +61,7 @@ export function SlideDeckContentViewer({
     <div className="flex h-full min-h-[420px] flex-col gap-3">
       <p className="text-[10px] leading-relaxed text-en-muted">
         Google スライド風の<strong className="font-medium text-en-text">内容プレビュー</strong>
-        です。■固稿から拾った文言＋不足分はプレースホルダー箇条書き（予測）です。
+        です。今回のプロンプトの■固稿から拾っています。
       </p>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
@@ -232,22 +232,25 @@ function ContentSlideFrame({
         </p>
       )}
       <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
-        {bullets.map((b, i) => {
-          const placeholder = b.includes("追加されていきます") || b.includes("具体化されます");
-          return (
+        {bullets.length === 0 ? (
+          <li className="text-[11px] leading-relaxed" style={{ color: colors.textSub }}>
+            この枚の■固稿に、プレビュー用の箇条がありません。左の原文を確認してください。
+          </li>
+        ) : (
+          bullets.map((b, i) => (
             <li
               key={`${b}-${i}`}
               className="flex gap-2 text-[11px] leading-relaxed md:text-xs"
-              style={{ color: placeholder ? colors.textSub : colors.textMain }}
+              style={{ color: colors.textMain }}
             >
               <span
                 className="mt-1.5 size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: placeholder ? colors.textSub : colors.secondary }}
+                style={{ backgroundColor: colors.secondary }}
               />
-              <span className={placeholder ? "italic opacity-90" : undefined}>{b}</span>
+              <span>{b}</span>
             </li>
-          );
-        })}
+          ))
+        )}
       </ul>
       <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: colors.dividerLine }}>
         <div

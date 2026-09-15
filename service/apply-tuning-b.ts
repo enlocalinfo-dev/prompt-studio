@@ -82,6 +82,28 @@ export function applyEstimateFactsToBody(
     out = out.replace(/東日本営業/g, "見積の対象部署");
   }
 
+  if (audience) {
+    out = out.replace(
+      /見出し：受講対象——現場営業と企画が同じ型を持つ/g,
+      `見出し：受講対象——${audience}`,
+    );
+    out = out.replace(
+      /リード：BtoB営業と営業企画が、同じテンプレとAIの型を共有する前提で設計します/g,
+      `リード：${audience}を対象に設計します`,
+    );
+  }
+  if (n != null && n > 0) {
+    out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
+    out = out.replace(/サブ：伴走型・全4回——準備・提案・振り返りをAIで標準化/g, `サブ：全${n}回（見積より）`);
+    out = out.replace(/見出し：見積記載の回数——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
+  } else if (facts.sessionDetail) {
+    const firstSession = facts.sessionDetail.split("\n")[0] ?? "";
+    if (firstSession) {
+      out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：${firstSession}`);
+      out = out.replace(/見出し：見積記載の回数——学ぶより「自社の型を作る」伴走/g, `見出し：${firstSession}`);
+    }
+  }
+
   if (facts.sessionDetail && !isSampleSessionPlan(facts.sessionDetail)) {
     const detail = facts.sessionDetail.replace(/\n/g, "／");
     out = out.replace(/第1回：商談準備のAI化（リサーチ・仮説・質問設計）→ 成果物：準備チェックリスト1式/g, `実施内容（見積）：${detail}`);
