@@ -122,9 +122,18 @@ function mockExtractB(transcript: string): ExtractedB {
     .split("\n")
     .find((l) => l.includes("【研修開始時期】") || (l.includes("研修開始") && l.includes("／")));
 
+  const nameFromTranscript =
+    transcript.match(/研修名[：:]\s*(.+)/)?.[1]?.trim() ??
+    transcript.match(/件名[：:]\s*(.+)/)?.[1]?.trim() ??
+    "";
+  const trainingName =
+    nameFromTranscript && !/未入力|AI活用\s*営業プロセス改善研修/.test(nameFromTranscript)
+      ? nameFromTranscript.slice(0, 80)
+      : "（見積の件名・サービス名）";
+
   return {
     formatId: "B",
-    trainingName: "AI活用 営業プロセス改善研修",
+    trainingName,
     targetParticipants: transcript.slice(0, 200) || "BtoB営業・営業企画（人数は要確認）",
     trainingActivities: "全4回・伴走型（準備・提案・振り返り・運用ガイド）",
     beforeAfterSteps: "5ステップの Before/After（AI活用後を明示）",

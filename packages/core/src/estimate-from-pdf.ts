@@ -41,8 +41,119 @@ export function composeTrainingStartPeriodFromSchedule(scheduleBlock: string, fa
   return block.replace(/\n+/g, "／").slice(0, 400);
 }
 
+const SAMPLE_TRAINING_NAME_COMPACT = "AI活用営業プロセス改善研修";
+
+/** 型紙の見本研修名（実PDFに無いときは採用しない） */
+export function isSampleTrainingName(value: string | undefined | null): boolean {
+  if (!value?.trim()) return false;
+  return value.replace(/\s+/g, "").includes(SAMPLE_TRAINING_NAME_COMPACT);
+}
+
+function compactJa(s: string): string {
+  return s.replace(/\s+/g, "");
+}
+
+function cleanTrainingName(raw: string): string {
+  return raw
+    .replace(/^[\s　・\-–—【『「]+/, "")
+    .replace(/[】』」]+$/g, "")
+    .replace(/（伴走型・全4回）/g, "")
+    .replace(/[（(]仮[）)]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function sourceHasSampleName(source: string): boolean {
+  return compactJa(source).includes(SAMPLE_TRAINING_NAME_COMPACT);
+}
+
+/** 見積のラベル・本文から使える研修名か */
+export function isUsableTrainingName(value: string | undefined | null, sourceText = ""): boolean {
+  const t = cleanTrainingName(value ?? "");
+  if (t.length < 3 || t.length > 80) return false;
+  if (/^(研修費|合計|総額|税抜|税込|御中|見積|見積書|estimate|quotation|有効期限|助成|差引)$/i.test(t)) return false;
+  if (/^(研修費|合計|総額|税抜|税込|御中|見積|有効期限|助成|差引)/.test(t)) return false;
+  if (/研修費|税抜合計|御中|有効期限/.test(t) && !/(講座|セミナー|ワークショップ|コース)/.test(t)) return false;
+  if (isSampleTrainingName(t) && !sourceHasSampleName(sourceText)) return false;
+  return true;
+}
+
+function labeledField(text: string, labels: string[]): string | undefined {
+  for (const label of labels) {
+    const sameLine = new RegExp(`${label}[：:\\s　]+([^\\n]{3,80})`, "i");
+    const m = text.match(sameLine);
+    if (m?.[1] && isUsableTrainingName(m[1], text)) return cleanTrainingName(m[1]);
+
+    const nextLine = new RegExp(`${label}[：:\\s　]*\\n+([^\\n]{3,80})`, "i");
+    const n = text.match(nextLine);
+    if (n?.[1] && isUsableTrainingName(n[1], text)) return cleanTrainingName(n[1]);
+  }
+  return undefined;
+}
+
+function nameFromFileName(fileName: string, sourceText: string): string | undefined {
+  const base = fileName.replace(/\.pdf$/i, "").trim();
+  if (!base) return undefined;
+  const parts = base
+    .replace(/^見積書?[_-]*/i, "")
+    .split(/[_-]/)
+    .map((p) => p.replace(/株式会社[^\s]*/g, "").trim())
+    .filter(Boolean);
+  for (const part of [...parts].reverse()) {
+    if (isUsableTrainingName(part, sourceText) && !/^20\d{6}$/.test(part)) {
+      return cleanTrainingName(part);
+    }
+  }
+  if (isUsableTrainingName(base, sourceText)) return cleanTrainingName(base);
+  return undefined;
+}
+
+/**
+ * 見積PDFから研修名を必ず拾う。優先順は 件名 → サービス/品名 → 本文の講座名 → ファイル名。
+ * 型紙見本「AI活用 営業プロセス改善研修」は、PDF本文に無い限り使わない。
+ */
+export function inferTrainingNameFromEstimate(text: string, fileName?: string): string {
+  const source = text ?? "";
+
+  const labeled = labeledField(source, [
+    "件名",
+    "題名",
+    "案件名",
+    "件\\s*名",
+    "サービス名",
+    "品名",
+    "品目名",
+    "品目",
+    "コース名",
+    "講座名",
+    "研修名",
+    "作業内容",
+    "業務内容",
+    "摘要",
+  ]);
+  if (labeled) return labeled;
+
+  const lines = source
+    .split(/\n+/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (!/(研修|講座|セミナー|コース|ワークショップ)/.test(line)) continue;
+    if (/研修費|研修開始|研修日|助成|税抜|合計|対象者/.test(line)) continue;
+    const cut = line.replace(/^(?:内容|明細|項目)[：:\s]*/, "");
+    if (isUsableTrainingName(cut, source)) return cleanTrainingName(cut);
+  }
+
+  const fromFile = fileName ? nameFromFileName(fileName, source) : undefined;
+  if (fromFile) return fromFile;
+
+  return "";
+}
+
 /** 見積PDFテキストからの簡易抽出（LLM前のたたき台） */
-export function heuristicParseEstimateText(text: string): ExpandedFromEstimate {
+export function heuristicParseEstimateText(text: string, fileName?: string): ExpandedFromEstimate {
   const out: ExpandedFromEstimate = { tuning: {}, brief: {}, trainingDetailForSlides: "" };
 
   const scheduleBlock = extractScheduleFromEstimateText(text);
@@ -57,10 +168,8 @@ export function heuristicParseEstimateText(text: string): ExpandedFromEstimate {
     text.match(/(株式会社[^\s　]+)/)?.[1];
   if (client) out.tuning.clientName = client.includes("様") ? client : `${client}様`;
 
-  const title =
-    text.match(/(?:研修|講座|セミナー|コース)[^\n]{0,60}/)?.[0] ??
-    text.match(/(?:件名|題名)[：:\s]*([^\n]+)/)?.[1]?.trim();
-  if (title) out.tuning.projectTitle = title.replace(/^件名[：:\s]*/, "").slice(0, 80);
+  const title = inferTrainingNameFromEstimate(text, fileName);
+  if (title) out.tuning.projectTitle = title;
 
   const date =
     text.match(/(20\d{2})[年./](\d{1,2})[月./](\d{1,2})/)?.[0] ??

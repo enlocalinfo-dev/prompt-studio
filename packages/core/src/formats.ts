@@ -59,7 +59,7 @@ export function defaultTuning(formatId: FormatId, documentDate: string): Tuning 
       slideCount: 8,
       netCostSlide: true,
       illustrationEmphasis: true,
-      projectTitle: "AI活用 営業プロセス改善研修",
+      projectTitle: "",
     };
   }
   return {

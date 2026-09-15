@@ -1,5 +1,11 @@
 import type { PromptSegment, ReferenceDocument, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
-import { defaultTuning, emptyTrainingBrief, mergeExpandedIntoBrief } from "@prompt-studio/core";
+import {
+  defaultTuning,
+  emptyTrainingBrief,
+  inferTrainingNameFromEstimate,
+  isUsableTrainingName,
+  mergeExpandedIntoBrief,
+} from "@prompt-studio/core";
 import { todayJa } from "../lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -84,10 +90,15 @@ export function EstimatePdfImportPanel({
 
         const defaults = defaultTuning("B", todayJa()) as TuningB;
         const nextBrief = mergeExpandedIntoBrief(emptyTrainingBrief(), expanded.brief ?? {});
+        const inferredTitle = inferTrainingNameFromEstimate(extractedText, file.name);
+        const extractedTitle = expanded.tuning?.projectTitle?.trim() || "";
+        const projectTitle = isUsableTrainingName(extractedTitle, extractedText)
+          ? extractedTitle
+          : inferredTitle || extractedTitle;
         const nextTuning: TuningB = {
           ...defaults,
           clientName: expanded.tuning?.clientName?.trim() || "",
-          projectTitle: expanded.tuning?.projectTitle?.trim() || "",
+          projectTitle,
           documentDate: expanded.tuning?.documentDate?.trim() || todayJa(),
           proposerName: expanded.tuning?.proposerName?.trim() || defaults.proposerName,
         };

@@ -171,9 +171,11 @@ export async function runGenerate(body: {
     );
   }
 
-  const title =
-    tuning.projectTitle ||
-    (structured.formatId === "B" ? structured.trainingName : "協業提案");
+  const extractedName =
+    structured.formatId === "B" && !/AI活用\s*営業プロセス改善研修/.test(structured.trainingName)
+      ? structured.trainingName
+      : "";
+  const title = tuning.projectTitle?.trim() || extractedName || "見積記載の研修";
 
   return {
     structured,

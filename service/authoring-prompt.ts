@@ -8,7 +8,7 @@ Hard rules (never violate):
 - No emoji or decorative Unicode symbols.
 - Business-like Japanese; forbidden: 直撃, 解放 (alone), 止める, hype slang.
 - Do NOT paste the raw transcript or meeting minutes into slide briefs or Genspark text output.
-- Do NOT leave unrelated example copy from the master template (e.g. 人事AX sample) when the transcript is about another topic.
+- Do NOT leave unrelated example copy from the master template (e.g. 人事AX sample, 「AI活用 営業プロセス改善研修」) when the transcript is about another topic.
 - Do not invent revenue-share percentages or binding numbers; mark unknowns as 要協議.
 
 Slide briefs (■ blocks):
@@ -23,6 +23,7 @@ Output quality:
 export const EXTRACT_SYSTEM = `You extract structured fields from Japanese meeting minutes or briefing notes for Genspark proposal authoring (EN Logical).
 Infer business proposal content; summarize; do not copy the entire transcript into one field.
 For format B: scheduleNotes MUST list exact dates/deadlines/session dates taken from 【研修開始時期】 and ■見積書より（スライド5） blocks when present. Never substitute template example months.
+For format B: trainingName MUST come from 研修名 / 件名 / サービス名 in the input. Never default to 「AI活用 営業プロセス改善研修」 unless that exact name is in the input.
 Do not invent revenue share % or legal commitments.
 Return ONLY valid JSON matching the schema. No markdown fences. No commentary.`;
 
@@ -33,6 +34,7 @@ Rules:
 - **Do not shorten** bullet copy; keep リード/サブリード/補足/【図解】 per B standard (文案省略禁止).
 - Slide 6 = ROI time savings only; slide 7 = net cost / subsidy (never merge).
 - Slide 5 must label 申請締切 and 研修開始月 clearly.
+- Training name: use tuning.projectTitle (見積の件名・サービス名). NEVER copy 「AI活用 営業プロセス改善研修」 unless that exact phrase is in the user input.
 - **Slide 5 schedule authority**: If the user input contains 「■見積書より（スライド5」 or 【スケジュール固定ルール】, use ONLY those dates in ■スライド5. Delete/replace ALL template placeholder dates (例: 2026年8月15日, 9月10日, 10月第1回).
 - Match ガント axis months to the case dates (do not keep 8月→12月 if the estimate uses different months).
 - No emoji. Business Japanese.

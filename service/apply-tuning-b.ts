@@ -9,17 +9,17 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
   out = out.replace(/2026年7月13日/g, tuning.documentDate);
   out = out.replace(/株式会社ネクストリンク商事様/g, tuning.clientName);
 
-  const title = tuning.projectTitle?.trim();
-  if (title) {
-    out = out.replace(/人事AX研修 共同開発のご提案/g, title);
-    out = out.replace(/\*\*AI活用 営業プロセス改善研修\*\*/g, `**${title}**`);
-    out = out.replace(/AI活用 営業プロセス改善研修（伴走型・全4回）/g, title);
-    out = out.replace(/AI活用 営業プロセス改善研修/g, title);
-    out = out.replace(
-      /training_name: "AI活用 営業プロセス改善研修"/g,
-      `training_name: "${title.replace(/"/g, '\\"')}"`,
-    );
-  }
+  const title = tuning.projectTitle?.trim() || "（見積の件名・サービス名）";
+  out = out.replace(/人事AX研修 共同開発のご提案/g, title);
+  out = out.replace(/\*\*AI活用 営業プロセス改善研修\*\*/g, `**${title}**`);
+  out = out.replace(/AI活用営業プロセス改善研修（伴走型・全4回）/g, title);
+  out = out.replace(/AI活用 営業プロセス改善研修（伴走型・全4回）/g, title);
+  out = out.replace(/AI活用営業プロセス改善研修/g, title);
+  out = out.replace(/AI活用 営業プロセス改善研修/g, title);
+  out = out.replace(
+    /training_name: "AI活用 営業プロセス改善研修"/g,
+    `training_name: "${title.replace(/"/g, '\\"')}"`,
+  );
 
   out = out.replace(
     /client_template: "株式会社ネクストリンク商事様"/g,

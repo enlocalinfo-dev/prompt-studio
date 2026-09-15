@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   heuristicParseEstimateText,
+  inferTrainingNameFromEstimate,
+  isUsableTrainingName,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
 import { fetchPdfBase64FromBlobUrl } from "./pdf-blob-fetch.js";
@@ -33,8 +35,12 @@ export async function expandBriefFromEstimatePdf(
     pdfBase64 = await fetchPdfBase64FromBlobUrl(pdfBlobUrl);
   }
   const heuristic = extractedText?.trim()
-    ? heuristicParseEstimateText(extractedText)
+    ? heuristicParseEstimateText(extractedText, fileName)
     : { tuning: {}, brief: {}, trainingDetailForSlides: "" };
+  const inferredName = inferTrainingNameFromEstimate(extractedText ?? "", fileName);
+  if (!isUsableTrainingName(heuristic.tuning.projectTitle, extractedText ?? "") && inferredName) {
+    heuristic.tuning.projectTitle = inferredName;
+  }
 
   const client = getClient();
   if (!client) {
@@ -48,6 +54,10 @@ Schedule (CRITICAL for slide 5):
 - Extract EVERY implementation date, session number (第N回), time, deadline, and start month from tables and remarks.
 - Fill scheduleSessionDates and scheduleForSlide5 from the estimate — never copy template example dates (9月10日, 10月開始, etc.).
 - If the PDF lists course dates, list them verbatim in scheduleSessionDates.
+
+Training name (CRITICAL for projectTitle):
+- projectTitle is REQUIRED. Take it from 件名, 題名, サービス名, 品名, 品目, コース名, 講座名, or the first training item in the table.
+- Never output the template sample name 「AI活用 営業プロセス改善研修」 unless that exact phrase appears in the PDF.
 
 Output ONLY valid JSON matching the schema.`;
 
@@ -86,6 +96,13 @@ ${EXPAND_BRIEF_JSON_SCHEMA}`;
         .map((b) => b.text)
         .join("");
       const expanded = parseJson(text, extractedText);
+      const source = extractedText ?? "";
+      const inferred = inferTrainingNameFromEstimate(source, fileName);
+      if (!isUsableTrainingName(expanded.tuning.projectTitle, source) && inferred) {
+        expanded.tuning.projectTitle = inferred;
+      } else if (!expanded.tuning.projectTitle?.trim() && inferred) {
+        expanded.tuning.projectTitle = inferred;
+      }
       return { expanded, usedLlm: true };
     } catch {
       /* try next model */

@@ -51,8 +51,9 @@ export function FineTunePanel({ tuning, onChange, disabled = false, fieldErrors 
         />
         <MetaField
           label="研修名"
+          hint="見積の件名・サービス名から自動入力。違う場合だけ直してください"
           value={tuning.projectTitle}
-          placeholder="例：AI活用 営業プロセス改善研修（全4回）"
+          placeholder="見積の件名またはサービス名"
           onChange={(v) => patch({ projectTitle: v })}
         />
       </div>
@@ -77,16 +78,19 @@ function MetaField({
   onChange,
   error,
   placeholder,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   error?: string;
   placeholder?: string;
+  hint?: string;
 }) {
   return (
     <label className="block text-xs font-medium text-en-muted">
       {label}
+      {hint && <span className="mt-0.5 block font-normal text-[11px] text-en-muted/80">{hint}</span>}
       <input
         className={`input-en mt-1.5 ${error ? "border-en-accent-strong/50" : ""}`}
         value={value}

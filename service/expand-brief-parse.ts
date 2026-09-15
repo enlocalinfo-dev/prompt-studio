@@ -1,12 +1,14 @@
 import {
   composeTrainingStartPeriodFromSchedule,
   extractScheduleFromEstimateText,
+  inferTrainingNameFromEstimate,
+  isUsableTrainingName,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
 
 const JSON_SCHEMA = `{
   "clientName": "提案先（株式会社〇〇様）",
-  "projectTitle": "研修名・件名",
+  "projectTitle": "見積の件名またはサービス名・品名（必須。型紙の見本研修名は使わない）",
   "documentDate": "見積日または資料版日（YYYY年M月D日）",
   "targetParticipants": "研修対象者（人数・役割・前提）",
   "trainingStartPeriod": "開始時期・決裁/申請締切/キックオフ（見積・備考から）",
@@ -76,10 +78,16 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
   const scheduleForSlide5 = buildScheduleForSlide5(obj, extractedText);
   const trainingStartPeriod = buildTrainingStartPeriod(obj, scheduleForSlide5);
 
+  const source = extractedText ?? "";
+  let projectTitle = String(obj.projectTitle ?? "").trim();
+  if (!isUsableTrainingName(projectTitle, source)) {
+    projectTitle = inferTrainingNameFromEstimate(source) || projectTitle;
+  }
+
   return {
     tuning: {
       clientName: obj.clientName,
-      projectTitle: obj.projectTitle,
+      projectTitle,
       documentDate: obj.documentDate,
     },
     brief: {
