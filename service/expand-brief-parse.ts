@@ -1,6 +1,7 @@
 import {
   composeTrainingStartPeriodFromSchedule,
   extractScheduleFromEstimateText,
+  formatGroupTracksDetail,
   inferEstimateDeliveryFacts,
   inferTrainingNameFromEstimate,
   isSampleAudienceText,
@@ -24,7 +25,8 @@ const JSON_SCHEMA = `{
   "mainEffects": "主な効果・ROIの要約（試算があれば記載、保証しない注記）",
   "trainingFeeExTax": "研修費税抜（見積金額）",
   "subsidyAndNet": "助成・差引・1人あたり（見積にあれば。なければ空文字）",
-  "trainingDetailForSlides": "スライド3用：見積の回数・各回テーマ・時間（型紙の全4回見本は使わない）",
+  "trainingDetailForSlides": "スライド3–4用：見積の回数・各回テーマ・時間（型紙の全4回見本は使わない）",
+  "groupTracks": "群がある場合のみ：群名／人数／講座／時間を群ごとに改行。1本の連続全回にしない。無ければ空",
   "notes": "不足・要確認事項"
 }`;
 
@@ -101,8 +103,16 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
   }
 
   let trainingDetailForSlides = String(obj.trainingDetailForSlides ?? "").trim();
-  if (!trainingDetailForSlides || (isSampleSessionPlan(trainingDetailForSlides) && !isSampleSessionPlan(source))) {
+  const groupTracks = String(obj.groupTracks ?? "").trim();
+  const flattenedAllSessions = /全\s*[0-9０-９]+\s*回/.test(trainingDetailForSlides) && !/群\s*[0-9０-９]/.test(trainingDetailForSlides);
+  if (facts.parallelGroups && (flattenedAllSessions || !/群\s*[0-9０-９]/.test(trainingDetailForSlides))) {
+    trainingDetailForSlides = [groupTracks, facts.sessionDetail, trainingDetailForSlides]
+      .filter((s) => s && /群\s*[0-9０-９]/.test(s))
+      .join("\n") || facts.sessionDetail || formatGroupTracksDetail(facts.groups);
+  } else if (!trainingDetailForSlides || (isSampleSessionPlan(trainingDetailForSlides) && !isSampleSessionPlan(source))) {
     trainingDetailForSlides = facts.sessionDetail || trainingDetailForSlides;
+  } else if (groupTracks && !/群\s*[0-9０-９]/.test(trainingDetailForSlides)) {
+    trainingDetailForSlides = `${groupTracks}\n${trainingDetailForSlides}`;
   }
 
   return {

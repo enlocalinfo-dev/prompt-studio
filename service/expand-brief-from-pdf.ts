@@ -74,6 +74,7 @@ Training name vs client (CRITICAL):
 Audience and sessions (CRITICAL):
 - targetParticipants MUST come from 受講対象 / 対象者 / 受講人数 / 人数 / 定員. Accept 人 and 名 (例: 20人 = 20名). Never use 15名 + 営業企画2名 / 東日本営業 unless those exact facts appear in the PDF.
 - trainingDetailForSlides MUST list 全N回 and each session date/theme from the calendar (例: 全5回). Never copy the template 全4回 curriculum (商談準備→提案書→議事録→運用ガイド) unless the PDF says so.
+- Groups (CRITICAL): If the PDF has 群1 / 群2, output groupTracks as one line per group (name, headcount, course, hours). Calendar row numbers 1–10 may be the company's date order — NOT one person taking 10 sessions in a row. Do not write 「全10回・1人20時間」 as a single track when groups are 10時間 each.
 - Fees and ROI: copy 税抜/税込/助成/実質負担 and 年間削減 from the estimate. Do not keep 170万円 / 490万円 template numbers.
 
 Output ONLY valid JSON matching the schema.`;

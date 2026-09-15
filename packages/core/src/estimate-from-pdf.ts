@@ -251,6 +251,13 @@ export function inferTrainingNameFromEstimate(text: string, fileName?: string): 
   return "";
 }
 
+export type EstimateGroupTrack = {
+  label: string;
+  headcount: number | null;
+  course: string;
+  hours: string;
+};
+
 export type EstimateDeliveryFacts = {
   headcount: number | null;
   sessionCount: number | null;
@@ -259,6 +266,8 @@ export type EstimateDeliveryFacts = {
   sessionLines: string[];
   audienceLine: string;
   sessionDetail: string;
+  groups: EstimateGroupTrack[];
+  parallelGroups: boolean;
 };
 
 function toAsciiDigits(s: string): string {
@@ -276,6 +285,47 @@ export function isSampleAudienceText(value: string | undefined | null): boolean 
   return c.includes("15名") && (c.includes("営業企画") || c.includes("東日本営業") || c.includes("BtoBフィールド営業"));
 }
 
+/** 見積の群1・群2（並列追加）。通しの全N回とは別物 */
+export function inferEstimateGroupTracks(text: string): EstimateGroupTrack[] {
+  const source = stripAuthoringInstructionLines(text ?? "");
+  const tracks = new Map<string, EstimateGroupTrack>();
+  for (const m of source.matchAll(/群\s*([0-9０-９]+)([^\n]{0,120})/g)) {
+    const label = `群${toAsciiDigits(m[1])}`;
+    const rest = (m[2] ?? "").replace(/^[：:\s　（(]+/, " ");
+    const head = rest.match(/([0-9０-９]{1,3})\s*[名人]/);
+    const hours = rest.match(/([0-9０-９]+)\s*時間/);
+    const course =
+      rest.match(/(クリエイティブAI講座|基礎講座（対面）|基礎講座|[^\s／・]{2,24}講座)/)?.[1]?.trim() ?? "";
+    const prev = tracks.get(label);
+    if (!prev) {
+      tracks.set(label, {
+        label,
+        headcount: head ? toCount(head[1]) : null,
+        course,
+        hours: hours ? `${toAsciiDigits(hours[1])}時間` : "",
+      });
+    } else {
+      if (!prev.course && course) prev.course = course;
+      if (prev.headcount == null && head) prev.headcount = toCount(head[1]);
+      if (!prev.hours && hours) prev.hours = `${toAsciiDigits(hours[1])}時間`;
+    }
+  }
+  return [...tracks.values()];
+}
+
+export function formatGroupTracksDetail(groups: EstimateGroupTrack[]): string {
+  if (groups.length < 2) return "";
+  const lines = [
+    `${groups.length}群を並列で足して実施（1本の連続受講ではない）`,
+    ...groups.map((g) => {
+      const bits = [g.course, g.headcount != null ? `${g.headcount}名` : "", g.hours].filter(Boolean);
+      return `${g.label}：${bits.join("・") || "見積の当該群"}`;
+    }),
+    "実施カレンダーの通し番号は社内日程の並び。全員が第1回から最終回まで連続で受ける意味ではない",
+  ];
+  return lines.join("\n");
+}
+
 /** 型紙見本の全4回カリキュラム */
 export function isSampleSessionPlan(value: string | undefined | null): boolean {
   if (!value?.trim()) return false;
@@ -289,6 +339,8 @@ export function isSampleSessionPlan(value: string | undefined | null): boolean {
  */
 export function inferEstimateDeliveryFacts(text: string): EstimateDeliveryFacts {
   const source = stripAuthoringInstructionLines(text ?? "");
+  const groups = inferEstimateGroupTracks(source);
+  const parallelGroups = groups.length >= 2;
 
   const labeledHead =
     source.match(/(?:受講人数|受講|対象人数|定員|人数)[^\d０-９]{0,16}([0-9０-９]{1,3})\s*名/) ??
@@ -320,6 +372,9 @@ export function inferEstimateDeliveryFacts(text: string): EstimateDeliveryFacts 
   if (sessionCount === 4 && !/全\s*[4４]\s*回/.test(source) && numbered.length !== 4 && !labeledKai && !days) {
     sessionCount = numbered.length || null;
   }
+  if (parallelGroups) {
+    sessionCount = null;
+  }
 
   const hoursMatch =
     source.match(/(?:各回|1回あたり|一回)[^\n]{0,8}([0-9０-９]+(?:\.[0-9]+)?)\s*時間/) ??
@@ -341,18 +396,21 @@ export function inferEstimateDeliveryFacts(text: string): EstimateDeliveryFacts 
 
   const uniqueSessions = [...new Set(sessionLines)].slice(0, 10);
 
-  const audienceLine = [targetRole, headcount != null ? `${headcount}名（見積より）` : ""]
-    .filter(Boolean)
-    .join("／")
-    .replace(/／+/g, "／");
+  const groupAudience = parallelGroups
+    ? groups
+        .map((g) => [g.label, g.course, g.headcount != null ? `${g.headcount}名` : ""].filter(Boolean).join(" "))
+        .join("／")
+    : "";
+  const audienceLine = (
+    groupAudience || [targetRole, headcount != null ? `${headcount}名（見積より）` : ""].filter(Boolean).join("／")
+  ).replace(/／+/g, "／");
 
-  const sessionDetail = [
-    sessionCount != null ? `全${sessionCount}回（見積より）` : "",
-    sessionHours,
-    ...uniqueSessions,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const groupDetail = formatGroupTracksDetail(groups);
+  const sessionDetail = groupDetail
+    ? [groupDetail, sessionHours].filter(Boolean).join("\n")
+    : [sessionCount != null ? `全${sessionCount}回（見積より）` : "", sessionHours, ...uniqueSessions]
+        .filter(Boolean)
+        .join("\n");
 
   return {
     headcount,
@@ -362,6 +420,8 @@ export function inferEstimateDeliveryFacts(text: string): EstimateDeliveryFacts 
     sessionLines: uniqueSessions,
     audienceLine,
     sessionDetail,
+    groups,
+    parallelGroups,
   };
 }
 
@@ -401,6 +461,10 @@ export function heuristicParseEstimateText(text: string, fileName?: string): Exp
   const facts = inferEstimateDeliveryFacts(text);
   if (facts.audienceLine) out.brief.targetParticipants = facts.audienceLine;
   if (facts.sessionDetail) out.trainingDetailForSlides = facts.sessionDetail;
+  if (facts.parallelGroups) {
+    const courses = facts.groups.map((g) => g.course).filter(Boolean);
+    if (courses.length >= 2) out.tuning.projectTitle = courses.join("／");
+  }
 
   out.brief.mainEffects =
     out.brief.mainEffects ??

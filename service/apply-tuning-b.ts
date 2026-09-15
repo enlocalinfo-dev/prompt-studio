@@ -71,8 +71,12 @@ export function applyEstimateFactsToBody(
   const src = stripSource(sourceText);
   const pdfHas = (re: RegExp) => re.test(src);
 
-  const n = facts.sessionCount;
-  if (n != null && n > 0) {
+  const groups = facts.groups ?? [];
+  const parallel = facts.parallelGroups || groups.length >= 2;
+  const n = parallel ? null : facts.sessionCount;
+  if (parallel) {
+    out = applyParallelGroupsToBody(out, facts);
+  } else if (n != null && n > 0) {
     out = out.replace(/全4回/g, `全${n}回`);
     out = out.replace(/全４回/g, `全${n}回`);
     out = out.replace(/4回・17名/g, `${n}回・${facts.headcount != null ? `${facts.headcount}名` : "見積の人数"}`);
@@ -119,11 +123,11 @@ export function applyEstimateFactsToBody(
       `リード：${audience}を対象に設計します`,
     );
   }
-  if (n != null && n > 0) {
+  if (!parallel && n != null && n > 0) {
     out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
     out = out.replace(/サブ：伴走型・全4回——準備・提案・振り返りをAIで標準化/g, `サブ：全${n}回（見積より）`);
     out = out.replace(/見出し：見積記載の回数——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
-  } else if (facts.sessionDetail && !isAuthoringInstructionText(facts.sessionDetail)) {
+  } else if (!parallel && facts.sessionDetail && !isAuthoringInstructionText(facts.sessionDetail)) {
     const firstSession = facts.sessionDetail.split("\n").find((l) => !isAuthoringInstructionText(l)) ?? "";
     if (firstSession && !isAuthoringInstructionText(firstSession)) {
       out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：${firstSession}`);
@@ -131,7 +135,7 @@ export function applyEstimateFactsToBody(
     }
   }
 
-  if (facts.sessionDetail && !isSampleSessionPlan(facts.sessionDetail)) {
+  if (!parallel && facts.sessionDetail && !isSampleSessionPlan(facts.sessionDetail)) {
     const detail = facts.sessionDetail.replace(/\n/g, "／");
     out = out.replace(/第1回：商談準備のAI化（リサーチ・仮説・質問設計）→ 成果物：準備チェックリスト1式/g, `実施内容（見積）：${detail}`);
     if (!pdfHas(/第2回：提案書/)) {
@@ -143,6 +147,73 @@ export function applyEstimateFactsToBody(
 
   out = applyScheduleAndMoneyFromBrief(out, src);
   return out;
+}
+
+function applyParallelGroupsToBody(body: string, facts: EstimateDeliveryFacts): string {
+  let out = body;
+  const groups = facts.groups ?? [];
+  const n = groups.length;
+  const labels = groups.map((g) => g.label).join("／");
+  const audience = groups
+    .map((g) => [g.label, g.course, g.headcount != null ? `${g.headcount}名` : ""].filter(Boolean).join(" "))
+    .join("／");
+
+  out = out.replace(
+    /見出し：全4回——学ぶより「自社の型を作る」伴走/g,
+    `見出し：${n}群並行——講座ごとに分けて実施`,
+  );
+  out = out.replace(
+    /サブ：伴走型・全4回——準備・提案・振り返りをAIで標準化/g,
+    `サブ：群を足して実施。1人が全回を連続受講する設計ではない`,
+  );
+  out = out.replace(/伴走型・全4回/g, `${n}群並行`);
+  out = out.replace(/全4回/g, "群ごとの回数");
+  out = out.replace(/全４回/g, "群ごとの回数");
+
+  if (audience) {
+    out = out.replace(
+      /見出し：受講対象——現場営業と企画が同じ型を持つ/g,
+      `見出し：受講対象——${audience}`,
+    );
+    out = out.replace(
+      /主対象：BtoBフィールド営業 \*\*15名\*\*（事業部：東日本営業）/g,
+      `主対象：${audience}`,
+    );
+    out = out.replace(
+      /副対象：営業企画 \*\*2名\*\*（テンプレ整備・横展開担当）/g,
+      `対象の内訳：${audience}`,
+    );
+  }
+
+  const detailLines = (facts.sessionDetail || formatFallbackGroupLines(groups))
+    .split("\n")
+    .filter((l) => l.trim() && !isAuthoringInstructionText(l));
+  if (detailLines.length) {
+    const bullets = detailLines.map((l) => `- ${l.replace(/^-\s*/, "")}`).join("\n");
+    out = out.replace(
+      /第1回：商談準備のAI化（リサーチ・仮説・質問設計）→ 成果物：準備チェックリスト1式/g,
+      `実施内容（見積・群ごと）：\n${bullets}`,
+    );
+    out = out.replace(/第2回：提案書・見積説明資料のたたき台生成 → 成果物：提案テンプレ1式\n/g, "");
+    out = out.replace(/第3回：議事録・振り返り・次アクションの自動化 → 成果物：振り返りフォーマット1式\n/g, "");
+    out = out.replace(/第4回：チーム展開・運用ルール・セキュリティ → 成果物：運用ガイド（社内版）\n/g, "");
+  }
+
+  out = out.replace(
+    /【図解】\*\*横4ステップフロー\*\*[^\n]*/g,
+    `【図解】上下${n}レーン（${labels}）。各レーンは当該群の回数のみ。横一列の連続フローは禁止`,
+  );
+  out = out.replace(
+    /【図解】\*\*横ガント（8月→12月）\*\*[^\n]*/g,
+    `【図解】横ガントは群ごとに帯を分ける（${labels}）。1本の連続バーにしない`,
+  );
+  return out;
+}
+
+function formatFallbackGroupLines(groups: EstimateDeliveryFacts["groups"]): string {
+  return groups
+    .map((g) => [g.label, g.course, g.headcount != null ? `${g.headcount}名` : "", g.hours].filter(Boolean).join("・"))
+    .join("\n");
 }
 
 function applyScheduleAndMoneyFromBrief(body: string, src: string): string {
