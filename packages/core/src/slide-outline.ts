@@ -48,7 +48,9 @@ function isTemplateHeadline(value: string | undefined): boolean {
 }
 
 function isDiagramLine(value: string): boolean {
-  return /【図解/.test(value.trim());
+  const t = value.trim();
+  if (/図解40%|図解多め|図解・イラストを多め/.test(t)) return false;
+  return /【図解|図解イメージ|^図解[：:]/.test(t);
 }
 
 function isInstructionLine(value: string): boolean {
@@ -76,7 +78,7 @@ function lineBodies(block: string): string[] {
       if (body && !isInstructionLine(body) && !isInstructionLine(stripPrefix(body))) out.push(body);
       continue;
     }
-    if (/^(見出し|タイトル|リード|サブリード|サブ|主対象|副対象|対象の内訳|第[0-9０-９]+回|提案先|研修費|実施内容)/.test(t)) {
+    if (/^(見出し|タイトル|リード|サブリード|サブ|主対象|副対象|対象の内訳|第[0-9０-９]+回|提案先|研修費|実施内容|補足|助成|チェック)/.test(t)) {
       out.push(t);
     }
   }
@@ -101,11 +103,51 @@ function extractDiagramNote(block: string): string | undefined {
     if (!isDiagramLine(t)) continue;
     const body = t
       .replace(/^【図解(?:イメージ)?】/, "")
+      .replace(/^図解(?:イメージ)?[：:]\s*/, "")
       .replace(/^[：:\s]+/, "")
       .trim();
     if (body) notes.push(body);
   }
   return notes.join(" ") || undefined;
+}
+
+export interface PreviewDiagramCard {
+  label: string;
+  body: string;
+}
+
+/** 図解欄用：回数・対象・【図解】からカードを組み立てる。空箱は返さない */
+export function inferPreviewDiagramCards(item: SlideOutlineItem): PreviewDiagramCard[] {
+  const bullets = slidePreviewBulletLines(item);
+  const sessions = bullets.filter((b) => /^第[0-9０-９]+回|^実施内容/.test(b));
+  if (sessions.length >= 1) {
+    return sessions.slice(0, 6).map((b) => {
+      const m = b.match(/^(第[0-9０-９]+回|実施内容)[：:\s]*(.*)$/);
+      return { label: m?.[1] ?? "回", body: (m?.[2] || stripPrefix(b) || b).slice(0, 90) };
+    });
+  }
+  const labeled = bullets.filter((b) =>
+    /^(主対象|副対象|対象の内訳|研修費|助成見込み|助成|チェック[0-9]|本提案の社内決裁|研修開始月|効果仮定)/.test(b),
+  );
+  if (labeled.length >= 1) {
+    return labeled.slice(0, 5).map((b) => {
+      const m = b.match(/^([^：:]{1,16})[：:](.*)$/);
+      return { label: (m?.[1] ?? "項目").trim(), body: (m?.[2] || stripPrefix(b) || b).slice(0, 90) };
+    });
+  }
+  if (item.diagramNote) {
+    const parts = item.diagramNote
+      .replace(/\*+/g, "")
+      .split(/[。／→]|＋/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 4);
+    if (parts.length >= 2) {
+      return parts.slice(0, 4).map((p, i) => ({ label: `要素${i + 1}`, body: p.slice(0, 90) }));
+    }
+    return [{ label: "図解", body: item.diagramNote.slice(0, 140) }];
+  }
+  if (item.headline) return [{ label: "この枚", body: item.headline.slice(0, 90) }];
+  return [];
 }
 
 function extractBullets(bodies: string[], max = 20): string[] {

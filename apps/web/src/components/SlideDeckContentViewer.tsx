@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ParsedDesignSystem, SlideOutlineItem } from "@prompt-studio/core";
-import { slidePreviewBulletLines } from "@prompt-studio/core";
+import { inferPreviewDiagramCards, slidePreviewBulletLines } from "@prompt-studio/core";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -215,10 +215,13 @@ function CoverSlideFrame({
           </li>
         ))}
       </ul>
-      {slide.diagramNote && (
-        <p className="mt-4 rounded-lg bg-white/10 px-3 py-2 text-[11px] leading-relaxed text-white/90">
-          図解：{slide.diagramNote}
-        </p>
+      {(slide.diagramNote || inferPreviewDiagramCards(slide).length > 0) && (
+        <div className="mt-4 rounded-lg bg-white/10 px-3 py-2">
+          <p className="text-[10px] font-medium text-white/80">図解</p>
+          {slide.diagramNote && (
+            <p className="mt-1 text-[11px] leading-relaxed text-white/90">{slide.diagramNote}</p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -277,27 +280,62 @@ function ContentSlideFrame({
           ))
         )}
       </motion.ul>
-      <div
-        className="mt-5 rounded-xl border p-3 md:p-4"
-        style={{ borderColor: colors.dividerLine, backgroundColor: colors.backgroundLight }}
-      >
-        <p className="text-[10px] font-semibold" style={{ color: colors.primary }}>
-          図解
-        </p>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <div
-            className="min-h-16 rounded-lg border"
-            style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
-          />
-          <div
-            className="col-span-2 min-h-16 rounded-lg border"
-            style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
-          />
-        </div>
+      <DiagramPanel colors={colors} slide={slide} />
+    </div>
+  );
+}
+
+function DiagramPanel({
+  colors,
+  slide,
+}: {
+  colors: ParsedDesignSystem["colors"];
+  slide: SlideOutlineItem;
+}) {
+  const cards = inferPreviewDiagramCards(slide);
+  return (
+    <div
+      className="mt-5 rounded-xl border p-3 md:p-4"
+      style={{ borderColor: colors.dividerLine, backgroundColor: colors.backgroundLight }}
+    >
+      <p className="text-[10px] font-semibold" style={{ color: colors.primary }}>
+        図解
+      </p>
+      {cards.length > 0 && (
+        <motion.div
+          className="mt-3 grid gap-2 sm:grid-cols-2"
+          initial="hidden"
+          animate="show"
+          variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+        >
+          {cards.map((card, i) => (
+            <motion.div
+              key={`${card.label}-${i}`}
+              variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.22, ease: EASE }}
+              className="rounded-lg border px-3 py-2.5"
+              style={{ borderColor: colors.dividerLine, backgroundColor: colors.surfaceCard }}
+            >
+              <p className="text-[10px] font-semibold" style={{ color: colors.secondary }}>
+                {card.label}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed" style={{ color: colors.textMain }}>
+                {card.body}
+              </p>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+      {slide.diagramNote && (
         <p className="mt-3 text-[11px] leading-relaxed" style={{ color: colors.textMain }}>
-          {slide.diagramNote || "この枚の■固稿に【図解】行がありません。左の原文を確認してください。"}
+          {slide.diagramNote}
         </p>
-      </div>
+      )}
+      {!slide.diagramNote && cards.length === 0 && (
+        <p className="mt-2 text-[11px] leading-relaxed" style={{ color: colors.textSub }}>
+          この枚の■固稿に図解の指示がありません。左の原文を確認してください。
+        </p>
+      )}
     </div>
   );
 }
