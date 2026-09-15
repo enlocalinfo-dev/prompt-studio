@@ -8,6 +8,7 @@ import {
   isSampleSessionPlan,
   isUsableTrainingName,
   mergeExpandedIntoBrief,
+  resolveClientAndTrainingName,
 } from "@prompt-studio/core";
 import { todayJa } from "../lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
@@ -92,7 +93,19 @@ export function EstimatePdfImportPanel({
         const { expanded, usedLlm } = await postExpandBriefFromPdf(expandBody);
 
         const defaults = defaultTuning("B", todayJa()) as TuningB;
-        const facts = inferEstimateDeliveryFacts(extractedText);
+        const factSource = [
+          extractedText,
+          expanded.brief?.targetParticipants,
+          expanded.trainingDetailForSlides,
+          expanded.scheduleForSlide5,
+          expanded.brief?.trainingStartPeriod,
+          expanded.brief?.trainingFeeExTax,
+          expanded.brief?.subsidyAndNet,
+          expanded.brief?.mainEffects,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        const facts = inferEstimateDeliveryFacts(factSource);
         const mergedBrief = mergeExpandedIntoBrief(emptyTrainingBrief(), expanded.brief ?? {});
         const nextBrief = {
           ...mergedBrief,
@@ -102,11 +115,17 @@ export function EstimatePdfImportPanel({
               ? mergedBrief.targetParticipants
               : facts.audienceLine || mergedBrief.targetParticipants,
         };
-        const inferredTitle = inferTrainingNameFromEstimate(extractedText, file.name);
+        const inferredTitle = inferTrainingNameFromEstimate(factSource, file.name);
         const extractedTitle = expanded.tuning?.projectTitle?.trim() || "";
-        const projectTitle = isUsableTrainingName(extractedTitle, extractedText)
+        const rawTitle = isUsableTrainingName(extractedTitle, extractedText)
           ? extractedTitle
           : inferredTitle || extractedTitle;
+        const resolved = resolveClientAndTrainingName(
+          expanded.tuning?.clientName?.trim() || "",
+          rawTitle,
+          factSource,
+          file.name,
+        );
         const slideDetailRaw = expanded.trainingDetailForSlides?.trim() || "";
         const slideDetail =
           slideDetailRaw && !isSampleSessionPlan(slideDetailRaw)
@@ -114,8 +133,8 @@ export function EstimatePdfImportPanel({
             : facts.sessionDetail || slideDetailRaw;
         const nextTuning: TuningB = {
           ...defaults,
-          clientName: expanded.tuning?.clientName?.trim() || "",
-          projectTitle,
+          clientName: resolved.clientName,
+          projectTitle: resolved.projectTitle,
           documentDate: expanded.tuning?.documentDate?.trim() || todayJa(),
           proposerName: expanded.tuning?.proposerName?.trim() || defaults.proposerName,
         };
@@ -189,7 +208,7 @@ export function EstimatePdfImportPanel({
       <p className="text-xs font-semibold text-en-accent">ステップ 1</p>
       <h2 className="mt-1 text-lg font-semibold text-en-text">見積PDFを選ぶ</h2>
       <p className="mt-2 text-sm leading-relaxed text-en-muted">
-        ENロジカル形式の見積PDFから、提案先・研修内容・費用を読み取り、スライド8枚分の指示文を自動作成します。
+        ENロジカル形式の見積PDFから、提案先・研修内容・費用を読み取り、スライド8枚分の指示文を自動作成します。文字が選べない画像PDFも、ページの絵を読んで取り込みます。
       </p>
 
       {phase === "error" && errorMessage && (
@@ -261,7 +280,9 @@ export function EstimatePdfImportPanel({
               {lastFile ? `選択中: ${lastFile}` : "PDFをドロップ、またはクリックして選択"}
             </p>
             <p className="mt-2 text-xs text-en-muted">
-              {lastFile ? "クリックで別のPDFに差し替えられます" : `文字付きPDF推奨 · スキャンPDFも最大${MAX_ESTIMATE_PDF_MB}MBまで`}
+              {lastFile
+                ? "クリックで別のPDFに差し替えられます"
+                : `画像PDF（文字が選べないもの）も可 · 最大${MAX_ESTIMATE_PDF_MB}MB`}
             </p>
             {phase === "ready" && promptResult && (
               <p className="mt-3 text-xs text-en-primary-bright">作成完了 · {promptResult.folderNameSuggestion}</p>
@@ -269,7 +290,11 @@ export function EstimatePdfImportPanel({
           </>
         )}
         {(phase === "parsing" || phase === "generating") && (
-          <p className="text-sm font-medium text-en-accent">処理中です。画面全体の進行表示をご確認ください。</p>
+          <p className="text-sm font-medium text-en-accent">
+            {phase === "parsing"
+              ? "ページを読み取っています。画像PDFは少し時間がかかります。"
+              : "提案用の文を作成しています。画面全体の進行表示をご確認ください。"}
+          </p>
         )}
       </motion.div>
 

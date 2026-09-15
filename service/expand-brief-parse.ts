@@ -6,6 +6,7 @@ import {
   isSampleAudienceText,
   isSampleSessionPlan,
   isUsableTrainingName,
+  resolveClientAndTrainingName,
   type ExpandedFromEstimate,
 } from "@prompt-studio/core";
 
@@ -81,11 +82,17 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
   const scheduleForSlide5 = buildScheduleForSlide5(obj, extractedText);
   const trainingStartPeriod = buildTrainingStartPeriod(obj, scheduleForSlide5);
 
-  const source = extractedText ?? "";
+  const source = [extractedText ?? "", ...Object.values(obj).map((v) => String(v ?? ""))].join("\n");
   let projectTitle = String(obj.projectTitle ?? "").trim();
-  if (!isUsableTrainingName(projectTitle, source)) {
-    projectTitle = inferTrainingNameFromEstimate(source) || projectTitle;
+  if (!isUsableTrainingName(projectTitle, extractedText ?? "")) {
+    projectTitle = inferTrainingNameFromEstimate(extractedText ?? "") || projectTitle;
   }
+  const resolved = resolveClientAndTrainingName(
+    String(obj.clientName ?? ""),
+    projectTitle,
+    source,
+  );
+  projectTitle = resolved.projectTitle;
 
   const facts = inferEstimateDeliveryFacts(source);
   let targetParticipants = String(obj.targetParticipants ?? "").trim();
@@ -100,7 +107,7 @@ export function parseExpandBriefJson(text: string, extractedText?: string): Expa
 
   return {
     tuning: {
-      clientName: obj.clientName,
+      clientName: resolved.clientName,
       projectTitle,
       documentDate: obj.documentDate,
     },

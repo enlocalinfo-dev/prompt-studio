@@ -8,8 +8,11 @@ import { mergeSlideBriefs } from "./markdown-merge.js";
 import { applyEstimateFactsToBody, applyTuningToBody } from "./apply-tuning-b.js";
 import { applyMasterRulesOnly } from "./apply-prompt-rules-b.js";
 import {
+  extractLabeledBriefLine,
   inferEstimateDeliveryFacts,
+  isAuthoringInstructionText,
   isSampleAudienceText,
+  resolveClientAndTrainingName,
   type PromptRuleOverridesB,
   type TuningB,
 } from "@prompt-studio/core";
@@ -28,9 +31,16 @@ function templatesLive(): boolean {
 
 function tuneDeliveryBody(master: string, tuning: TuningB, source: string): string {
   const facts = inferEstimateDeliveryFacts(source);
-  const audience = source.match(/【研修対象者】[^\n]*\n([^\n]+)/)?.[1]?.trim();
-  if (audience && !isSampleAudienceText(audience)) facts.audienceLine = audience;
-  return applyEstimateFactsToBody(applyTuningToBody(master, tuning), facts, source);
+  const audience = extractLabeledBriefLine(source, "【研修対象者】");
+  if (audience && !isSampleAudienceText(audience) && !isAuthoringInstructionText(audience)) {
+    facts.audienceLine = audience;
+  }
+  const names = resolveClientAndTrainingName(tuning.clientName, tuning.projectTitle, source);
+  return applyEstimateFactsToBody(
+    applyTuningToBody(master, { ...tuning, clientName: names.clientName, projectTitle: names.projectTitle }),
+    facts,
+    source,
+  );
 }
 
 function resolveGensparkText(core: Awaited<ReturnType<typeof loadPromptStudioCore>>, markdown: string, masterTuned: string): string {
@@ -192,7 +202,12 @@ export async function runGenerate(body: {
     structured.formatId === "B" && !/AI活用\s*営業プロセス改善研修/.test(structured.trainingName)
       ? structured.trainingName
       : "";
-  const title = tuning.projectTitle?.trim() || extractedName || "見積記載の研修";
+  const names = resolveClientAndTrainingName(
+    tuning.clientName,
+    tuning.projectTitle?.trim() || extractedName,
+    `${transcript ?? ""}\n${referenceContext}`,
+  );
+  const title = names.projectTitle || extractedName || "見積記載の研修";
 
   return {
     structured,

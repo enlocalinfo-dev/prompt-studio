@@ -12,23 +12,33 @@ export function shouldAttachPdfBinary(extractedText: string | undefined): boolea
   return (extractedText?.trim().length ?? 0) < MIN_EXTRACTED_TEXT_CHARS;
 }
 
+export type EstimatePageImage = {
+  mimeType: "image/jpeg";
+  data: string;
+};
+
 export type ExpandBriefPdfPayload = {
   fileName: string;
   extractedText?: string;
   pdfBase64?: string;
   pdfBlobUrl?: string;
+  pageImages?: EstimatePageImage[];
 };
 
 export function sanitizeExpandBriefBody(body: ExpandBriefPdfPayload): ExpandBriefPdfPayload {
   const extractedText = body.extractedText?.trim().slice(0, MAX_EXTRACTED_TEXT_CHARS);
   let pdfBase64 = body.pdfBase64;
   let pdfBlobUrl = body.pdfBlobUrl?.trim();
+  const pageImages = sanitizePageImages(body.pageImages);
 
-  if (!shouldAttachPdfBinary(extractedText)) {
+  if (!shouldAttachPdfBinary(extractedText) && pageImages.length === 0) {
     pdfBase64 = undefined;
     pdfBlobUrl = undefined;
   } else {
-    if (pdfBlobUrl && pdfBase64) {
+    if (pageImages.length > 0) {
+      pdfBase64 = undefined;
+      pdfBlobUrl = undefined;
+    } else if (pdfBlobUrl && pdfBase64) {
       pdfBase64 = undefined;
     }
     if (pdfBase64 && pdfBase64.length > 3_600_000) {
@@ -41,5 +51,21 @@ export function sanitizeExpandBriefBody(body: ExpandBriefPdfPayload): ExpandBrie
     extractedText: extractedText || undefined,
     pdfBase64,
     pdfBlobUrl: pdfBlobUrl || undefined,
+    pageImages: pageImages.length ? pageImages : undefined,
   };
+}
+
+function sanitizePageImages(raw: EstimatePageImage[] | undefined): EstimatePageImage[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EstimatePageImage[] = [];
+  let total = 0;
+  for (const item of raw.slice(0, 8)) {
+    if (!item || item.mimeType !== "image/jpeg") continue;
+    const data = typeof item.data === "string" ? item.data.replace(/\s+/g, "") : "";
+    if (data.length < 80 || data.length > 600_000) continue;
+    if (total + data.length > 2_800_000) break;
+    out.push({ mimeType: "image/jpeg", data });
+    total += data.length;
+  }
+  return out;
 }

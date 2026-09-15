@@ -1,5 +1,13 @@
 import type { EstimateDeliveryFacts, TuningB } from "@prompt-studio/core";
-import { isSampleSessionPlan } from "@prompt-studio/core";
+import {
+  isAuthoringInstructionText,
+  isSampleSessionPlan,
+  stripAuthoringInstructionLines,
+} from "@prompt-studio/core";
+
+function stripSource(sourceText: string): string {
+  return stripAuthoringInstructionLines(sourceText ?? "");
+}
 
 /** B マスター内の案件固有表記を tuning で差し替え（■固稿・YAML・表記ロック） */
 export function applyTuningToBody(body: string, tuning: TuningB): string {
@@ -8,7 +16,8 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
   out = out.replace(/\*\*2026年7月13日\*\*/g, `**${tuning.documentDate}**`);
   out = out.replace(/2026年7月24日/g, tuning.documentDate);
   out = out.replace(/2026年7月13日/g, tuning.documentDate);
-  out = out.replace(/株式会社ネクストリンク商事様/g, tuning.clientName);
+  const client = tuning.clientName?.trim() || "（見積の提案先）";
+  out = out.replace(/株式会社ネクストリンク商事様/g, client);
 
   const title = tuning.projectTitle?.trim() || "（見積の件名・サービス名）";
   out = out.replace(/人事AX研修 共同開発のご提案/g, title);
@@ -24,7 +33,7 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
 
   out = out.replace(
     /client_template: "株式会社ネクストリンク商事様"/g,
-    `client_template: "${tuning.clientName.replace(/"/g, '\\"')}"`,
+    `client_template: "${client.replace(/"/g, '\\"')}"`,
   );
 
   if (tuning.proposerName?.trim()) {
@@ -35,6 +44,23 @@ export function applyTuningToBody(body: string, tuning: TuningB): string {
   return out;
 }
 
+function extractSectionLines(source: string, heading: RegExp): string[] {
+  const idx = source.search(heading);
+  if (idx < 0) return [];
+  const lines: string[] = [];
+  for (const raw of source.slice(idx).split("\n").slice(1)) {
+    const t = raw.trim();
+    if (!t) {
+      if (lines.length) break;
+      continue;
+    }
+    if (/^【|^■/.test(t) && lines.length) break;
+    if (isAuthoringInstructionText(t)) continue;
+    lines.push(t.replace(/^[-・]\s*/, ""));
+  }
+  return lines.filter(Boolean);
+}
+
 /** 型紙の人数・回数・見本カリキュラムを、見積の事実で上書きする */
 export function applyEstimateFactsToBody(
   body: string,
@@ -42,7 +68,7 @@ export function applyEstimateFactsToBody(
   sourceText: string,
 ): string {
   let out = body;
-  const src = sourceText ?? "";
+  const src = stripSource(sourceText);
   const pdfHas = (re: RegExp) => re.test(src);
 
   const n = facts.sessionCount;
@@ -57,10 +83,11 @@ export function applyEstimateFactsToBody(
   }
 
   const h = facts.headcount;
-  const audience = facts.audienceLine.trim();
+  const rawAudience = facts.audienceLine.trim();
+  const audience = isAuthoringInstructionText(rawAudience) ? "" : rawAudience;
   if (h != null && h > 0) {
-    if (!pdfHas(/17\s*名/)) out = out.replace(/17名/g, `${h}名`);
-    if (!pdfHas(/15\s*名/)) {
+    if (h !== 17) out = out.replace(/17名/g, `${h}名`);
+    if (h !== 15) {
       out = out.replace(/BtoBフィールド営業 \*\*15名\*\*（事業部：東日本営業）/g, audience || `受講 ${h}名（見積より）`);
       out = out.replace(/\*\*15名\*\*/g, `**${h}名**`);
       out = out.replace(/15名/g, `${h}名`);
@@ -96,9 +123,9 @@ export function applyEstimateFactsToBody(
     out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
     out = out.replace(/サブ：伴走型・全4回——準備・提案・振り返りをAIで標準化/g, `サブ：全${n}回（見積より）`);
     out = out.replace(/見出し：見積記載の回数——学ぶより「自社の型を作る」伴走/g, `見出し：全${n}回——見積の実施内容`);
-  } else if (facts.sessionDetail) {
-    const firstSession = facts.sessionDetail.split("\n")[0] ?? "";
-    if (firstSession) {
+  } else if (facts.sessionDetail && !isAuthoringInstructionText(facts.sessionDetail)) {
+    const firstSession = facts.sessionDetail.split("\n").find((l) => !isAuthoringInstructionText(l)) ?? "";
+    if (firstSession && !isAuthoringInstructionText(firstSession)) {
       out = out.replace(/見出し：全4回——学ぶより「自社の型を作る」伴走/g, `見出し：${firstSession}`);
       out = out.replace(/見出し：見積記載の回数——学ぶより「自社の型を作る」伴走/g, `見出し：${firstSession}`);
     }
@@ -114,6 +141,38 @@ export function applyEstimateFactsToBody(
     }
   }
 
+  out = applyScheduleAndMoneyFromBrief(out, src);
+  return out;
+}
+
+function applyScheduleAndMoneyFromBrief(body: string, src: string): string {
+  let out = body;
+  const schedule = extractSectionLines(src, /^■見積書より（スライド5/m);
+  const period = extractSectionLines(src, /^【研修開始時期】/m);
+  const scheduleText = (schedule.length ? schedule : period).filter((l) => !/テンプレ|例示日/.test(l));
+  if (scheduleText.length >= 2) {
+    const bullets = scheduleText.slice(0, 6).map((l) => `- ${l.replace(/^-\s*/, "")}`).join("\n");
+    out = out.replace(
+      /- 本提案の社内決裁：\*\*2026年8月15日まで\*\*[^\n]*\n- 助成金等 申請締切：\*\*2026年9月10日\*\*[^\n]*\n- 契約・キックオフ：\*\*2026年9月下旬\*\*[^\n]*\n- 研修開始月：\*\*2026年10月\*\*[^\n]*\n- 定着確認：\*\*2026年12月\*\*[^\n]*/,
+      bullets,
+    );
+  }
+
+  const feeLines = extractSectionLines(src, /^【研修費・実質負担】/m);
+  const fee = feeLines.find((l) => /研修費/.test(l)) ?? "";
+  const subsidy = feeLines.find((l) => /助成|差引|1人/.test(l)) ?? "";
+  if (fee && !/170万円/.test(fee)) {
+    out = out.replace(/- 研修費（税抜・例）：\*\*170万円\*\*[^\n]*/, `- ${fee}`);
+  }
+  if (subsidy && !/127\.5万円|42\.5万円/.test(subsidy)) {
+    out = out.replace(/- 助成見込み（例）：[^\n]*/, `- ${subsidy}`);
+  }
+
+  const effects = extractSectionLines(src, /^【主な効果】/m);
+  const effectLine = effects[0] ?? "";
+  if (effectLine && !/490万円/.test(effectLine) && /円|時間|万/.test(effectLine)) {
+    out = out.replace(/- 換算：5h × 17 × 12[^\n]*/, `- 効果（見積）：${effectLine}`);
+  }
   return out;
 }
 

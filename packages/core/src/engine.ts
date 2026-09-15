@@ -2,6 +2,7 @@ import type { FormatId, Tuning } from "./formats.js";
 import { isTuningA } from "./formats.js";
 import type { ReferenceBundle } from "./references.js";
 import { buildReferenceContext, referenceSummary } from "./references.js";
+import { extractLabeledBriefLine, isAuthoringInstructionText } from "./estimate-from-pdf.js";
 
 export interface ExtractedA {
   formatId: "A";
@@ -132,14 +133,16 @@ function mockExtractB(transcript: string): ExtractedB {
       : "（見積の件名・サービス名）";
 
   const targetFromTranscript =
-    transcript.match(/【研修対象者】[^\n]*\n([^\n]+)/)?.[1]?.trim() ||
+    extractLabeledBriefLine(transcript, "【研修対象者】") ||
     "見積の対象者（人数・部署は見積に準拠）";
   const activitiesFromTranscript =
     (() => {
-      const start = transcript.indexOf("■見積書より（スライド②③");
+      const start = transcript.search(/^■見積書より（スライド[②2]/m);
       if (start === -1) {
-        const kai = transcript.match(/全\s*[0-9０-９]+\s*回/);
-        return kai ? `${kai[0]}（見積より）` : "回数・各回テーマは見積に準拠";
+        const kai = transcript
+          .split("\n")
+          .find((l) => /全\s*[0-9０-９]+\s*回/.test(l) && !isAuthoringInstructionText(l));
+        return kai ? `${kai.match(/全\s*[0-9０-９]+\s*回/)?.[0]}（見積より）` : "回数・各回テーマは見積に準拠";
       }
       return transcript.slice(start, start + 500).replace(/\n+/g, " ").trim();
     })();

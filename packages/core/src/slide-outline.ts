@@ -45,6 +45,17 @@ function isTemplateHeadline(value: string | undefined): boolean {
   return TEMPLATE_HEADLINES.some((t) => v.includes(t) || t.includes(v));
 }
 
+function isInstructionLine(value: string): boolean {
+  const t = value.trim();
+  if (!t) return false;
+  if (t.startsWith("【図解")) return true;
+  if (/対象・回数ロック|スケジュール固定ルール|入力ルール/.test(t)) return true;
+  if (/見積に無い場合/.test(t)) return true;
+  if (/^禁止[：:]/.test(t)) return true;
+  if (/禁止[：:].{0,12}(全[0-9０-９]+回|15名|商談準備)/.test(t)) return true;
+  return false;
+}
+
 function stripPrefix(body: string): string {
   return body.replace(/^[【\s]*[^：:]{1,16}[：:]\s*/, "").trim();
 }
@@ -53,10 +64,10 @@ function lineBodies(block: string): string[] {
   const out: string[] = [];
   for (const line of block.split("\n")) {
     const t = line.trim();
-    if (!t || t.startsWith("【図解")) continue;
+    if (!t || isInstructionLine(t)) continue;
     if (t.startsWith("-")) {
       const body = t.replace(/^-\s*/, "").trim();
-      if (body) out.push(body);
+      if (body && !isInstructionLine(body) && !isInstructionLine(stripPrefix(body))) out.push(body);
       continue;
     }
     if (/^(見出し|タイトル|リード|サブリード|サブ|主対象|副対象|対象の内訳|第[0-9０-９]+回|提案先|研修費|実施内容)/.test(t)) {
@@ -81,7 +92,7 @@ function extractBullets(bodies: string[], max = 10): string[] {
   const bullets: string[] = [];
   for (const raw of bodies) {
     let body = raw;
-    if (!body || body.startsWith("【図解")) continue;
+    if (!body || isInstructionLine(body) || body.startsWith("【図解")) continue;
     if (body.length > 160) body = `${body.slice(0, 160)}…`;
     bullets.push(body);
     if (bullets.length >= max) break;
@@ -107,18 +118,20 @@ function parseSlideNumber(labelLine: string): number {
 
 /** プレビュー用：固稿の箇条を優先。同じ仮文言で全枚を埋めない */
 export function slidePreviewBulletLines(item: SlideOutlineItem): string[] {
-  const fromBrief = item.bullets.filter((b) => b.length > 0 && !b.startsWith("【"));
+  const fromBrief = item.bullets.filter(
+    (b) => b.length > 0 && !b.startsWith("【") && !isInstructionLine(b),
+  );
   const headline = item.headline?.trim();
   const sub = item.subline?.trim();
   const uniq = [...new Set(fromBrief.map((s) => s.trim()))].filter((line) => {
-    if (!line) return false;
+    if (!line || isInstructionLine(line)) return false;
     if (line === headline || line === sub) return false;
     if (headline && stripPrefix(line) === headline) return false;
     return true;
   });
 
   if (uniq.length > 0) return uniq.slice(0, 6);
-  if (headline && !isTemplateHeadline(headline)) return [headline];
+  if (headline && !isTemplateHeadline(headline) && !isInstructionLine(headline)) return [headline];
   return [];
 }
 
@@ -133,19 +146,26 @@ export function parseSlideOutlinesFromGenspark(gensparkText: string): SlideOutli
     const lines = part.trim().split("\n");
     const headLine = lines[0]?.replace(/^■\s*/, "").trim() ?? "";
     if (/^S\d|区切り|｜0[1-5]\s/.test(headLine)) continue;
+    if (/見積書より|入力ルール|対象・回数ロック|スケジュール固定/.test(headLine)) continue;
 
     const body = lines.slice(1).join("\n");
     const bodies = lineBodies(body);
     const labeledHeadline = bulletValue(bodies, ["見出し", "タイトル", "1行サマリー"]);
     const distinctive = pickDistinctive(bodies);
-    const first = bodies[0] ? stripPrefix(bodies[0]) : undefined;
+    const firstRaw = bodies[0] ? stripPrefix(bodies[0]) : undefined;
+    const first = firstRaw && !isInstructionLine(firstRaw) ? firstRaw : undefined;
 
-    let headline = labeledHeadline ?? distinctive ?? first ?? headLine;
-    if (isTemplateHeadline(headline) && distinctive) headline = distinctive;
+    let headline = [labeledHeadline, distinctive, first, headLine].find(
+      (v) => v && !isTemplateHeadline(v) && !isInstructionLine(v),
+    ) ?? headLine;
+    if (isTemplateHeadline(headline) && distinctive && !isInstructionLine(distinctive)) {
+      headline = distinctive;
+    }
 
+    const labeledSub = bulletValue(bodies, ["リード", "サブリード", "サブ"]);
     const subline =
-      bulletValue(bodies, ["リード", "サブリード", "サブ"]) ??
-      (distinctive && distinctive !== headline ? distinctive : undefined);
+      (labeledSub && !isInstructionLine(labeledSub) ? labeledSub : undefined) ??
+      (distinctive && distinctive !== headline && !isInstructionLine(distinctive) ? distinctive : undefined);
 
     const slideNumber = parseSlideNumber(headLine) || items.length + 1;
 

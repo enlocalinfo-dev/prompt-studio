@@ -77,18 +77,19 @@ app.post("/api/blob-upload", async (req, res) => {
 
 app.post("/api/expand-brief", async (req, res) => {
   try {
-    const { fileName, extractedText, pdfBase64, pdfBlobUrl } = req.body as {
+    const { fileName, extractedText, pdfBase64, pdfBlobUrl, pageImages } = req.body as {
       fileName?: string;
       extractedText?: string;
       pdfBase64?: string;
       pdfBlobUrl?: string;
+      pageImages?: { mimeType: "image/jpeg"; data: string }[];
     };
     if (!fileName) {
       res.status(400).json({ error: "fileName required" });
       return;
     }
     const { sanitizeExpandBriefBody } = await import("../../service/pdf-upload-limits.js");
-    const safe = sanitizeExpandBriefBody({ fileName, extractedText, pdfBase64, pdfBlobUrl });
+    const safe = sanitizeExpandBriefBody({ fileName, extractedText, pdfBase64, pdfBlobUrl, pageImages });
     const { expandBriefFromEstimatePdf } = await import("../../service/expand-brief-from-pdf.js");
     const result = await expandBriefFromEstimatePdf(safe);
     res.json(result);

@@ -5,6 +5,7 @@ import {
   formatMaxPdfSizeLabel,
   MAX_ESTIMATE_PDF_BYTES,
 } from "./pdfSizeLimits";
+import { renderPdfPagesToJpeg } from "./pdfPageImages";
 
 export const MIN_EXTRACTED_TEXT_CHARS = 80;
 /** JSON + base64 で Vercel 4.5MB 以内に収める生 PDF 上限 */
@@ -12,11 +13,17 @@ export const MAX_RAW_PDF_BYTES_FOR_UPLOAD = 2_800_000;
 export const MAX_BLOB_PDF_BYTES = MAX_ESTIMATE_PDF_BYTES;
 const MAX_EXTRACTED_TEXT_CHARS = 50_000;
 
+export type EstimatePageImage = {
+  mimeType: "image/jpeg";
+  data: string;
+};
+
 export type ExpandBriefRequestBody = {
   fileName: string;
   extractedText?: string;
   pdfBase64?: string;
   pdfBlobUrl?: string;
+  pageImages?: EstimatePageImage[];
 };
 
 export async function fileToBase64(file: File): Promise<string> {
@@ -58,6 +65,16 @@ export async function buildExpandBriefRequest(
 
   if (text.length >= MIN_EXTRACTED_TEXT_CHARS) {
     return { fileName, extractedText: text };
+  }
+
+  let pageImages: EstimatePageImage[] = [];
+  try {
+    pageImages = await renderPdfPagesToJpeg(file);
+  } catch {
+    pageImages = [];
+  }
+  if (pageImages.length > 0) {
+    return { fileName, extractedText: text || undefined, pageImages };
   }
 
   if (file.size > MAX_BLOB_PDF_BYTES) {
