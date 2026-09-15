@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ReferenceBundle, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
@@ -28,16 +28,21 @@ import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { postGenerate } from "../lib/api";
 import {
   findHistory,
+  freshTuningB,
   loadExtraNotes,
   loadHistory,
   loadSession,
   loadTrainingBrief,
   loadTuningB,
+  markCreateDraftActive,
   pushHistory,
+  resetCreateDraft,
   saveExtraNotes,
   saveSession,
   saveTrainingBrief,
   saveTuningB,
+  shouldKeepCreateDraft,
+  type CreatePageNavState,
 } from "../lib/storage";
 import { navigateToPromptDetail } from "../lib/promptNavigation";
 import { formatIdFromCreateSlug, formatRulesPath, getFormatByCreateSlug } from "../lib/proposalFormats";
@@ -67,12 +72,20 @@ export function CreatePage() {
   const showTrainingDeliveryFlow = activeFormat?.engine === "b";
   const history = loadHistory();
 
-  const [extraNotes, setExtraNotes] = useState(() => loadExtraNotes());
+  const [keepDraft] = useState(() => {
+    const keep = shouldKeepCreateDraft((location.state as CreatePageNavState | null) ?? null);
+    if (!keep) resetCreateDraft();
+    return keep;
+  });
+  const [importPanelKey, setImportPanelKey] = useState(0);
+  const [extraNotes, setExtraNotes] = useState(() => (keepDraft ? loadExtraNotes() : ""));
   const [estimateSlideDetail, setEstimateSlideDetail] = useState("");
   const [estimateScheduleDetail, setEstimateScheduleDetail] = useState("");
-  const [brief, setBrief] = useState<TrainingDeliveryBrief>(() => loadTrainingBrief());
+  const [brief, setBrief] = useState<TrainingDeliveryBrief>(() =>
+    keepDraft ? loadTrainingBrief() : defaultTrainingBrief(),
+  );
   const [references, setReferences] = useState<ReferenceBundle>(() => emptyReferences());
-  const [tuning, setTuning] = useState<TuningB>(() => loadTuningB());
+  const [tuning, setTuning] = useState<TuningB>(() => (keepDraft ? loadTuningB() : freshTuningB()));
   const [loading, setLoading] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
   const [inlinePrompt, setInlinePrompt] = useState<InlinePromptResult | null>(null);
@@ -87,7 +100,7 @@ export function CreatePage() {
   const formLocked = pdfPhase === "parsing" || pdfPhase === "generating" || loading;
 
   useEffect(() => {
-    if (!showTrainingDeliveryFlow) return;
+    if (!showTrainingDeliveryFlow || !keepDraft) return;
     const session = loadSession();
     const r = session?.result;
     if (!r?.markdown && !r?.gensparkText) return;
@@ -100,8 +113,16 @@ export function CreatePage() {
       usedLlm: r.usedLlm,
       segments,
     });
+    if (session.tuning) {
+      setTuning(session.tuning);
+      saveTuningB(session.tuning);
+    }
+    if (session.references) {
+      setReferences(session.references);
+    }
     setPdfLoaded(true);
-  }, [showTrainingDeliveryFlow]);
+    markCreateDraftActive();
+  }, [keepDraft, showTrainingDeliveryFlow]);
 
   useEffect(() => {
     const id = (location.state as { restoreHistoryId?: string } | null)?.restoreHistoryId;
@@ -114,6 +135,7 @@ export function CreatePage() {
     saveTuningB(h.tuning);
     setPdfLoaded(true);
     setStep2Open(true);
+    markCreateDraftActive();
     if (h.result?.markdown || h.result?.gensparkText) {
       const segments =
         h.result.segments?.length && h.result.segments.length > 0
@@ -193,6 +215,7 @@ export function CreatePage() {
         },
       };
       saveSession(payload);
+      markCreateDraftActive();
       pushHistory({
         clientName: input.tuning.clientName,
         projectTitle: input.tuning.projectTitle,
@@ -233,25 +256,22 @@ export function CreatePage() {
     setPdfLoaded(true);
     setFieldErrors({});
     setBannerError(null);
-    setReferences((prev) => ({
-      ...prev,
-      documents: [payload.document, ...prev.documents.filter((d) => d.name !== payload.document.name)].slice(0, 5),
-    }));
-    if (payload.notes?.trim()) {
-      setExtraNotes((prev) => {
-        const next = prev ? `${prev}\n${payload.notes}` : payload.notes!;
-        saveExtraNotes(next);
-        return next;
-      });
-    }
+    markCreateDraftActive();
+    setReferences({
+      documents: [payload.document],
+      urls: [],
+    });
+    const nextNotes = payload.notes?.trim() ?? "";
+    setExtraNotes(nextNotes);
+    saveExtraNotes(nextNotes);
   }, []);
 
   const handleAutoGenerateFromPdf = useCallback(
     async (payload: PdfAppliedPayload) => {
-      const mergedNotes = payload.notes?.trim() ? payload.notes : extraNotes;
+      const mergedNotes = payload.notes?.trim() ?? "";
       const refs: ReferenceBundle = {
         documents: [payload.document],
-        urls: references.urls,
+        urls: [],
       };
       const scheduleFromPdf =
         payload.scheduleDetail?.trim() ||
@@ -269,7 +289,7 @@ export function CreatePage() {
         openResultPage: true,
       });
     },
-    [extraNotes, references.urls, runGenerate],
+    [runGenerate],
   );
 
   async function handleRegenerate() {
@@ -324,6 +344,24 @@ export function CreatePage() {
   }
 
   const showSticky = Boolean(inlinePrompt?.gensparkText || inlinePrompt?.markdown);
+
+  function handleStartOver() {
+    resetCreateDraft();
+    setBrief(defaultTrainingBrief());
+    setTuning(freshTuningB());
+    setExtraNotes("");
+    setEstimateSlideDetail("");
+    setEstimateScheduleDetail("");
+    setReferences(emptyReferences());
+    setInlinePrompt(null);
+    setPdfLoaded(false);
+    setStep2Open(false);
+    setFieldErrors({});
+    setBannerError(null);
+    setPdfPhase("idle");
+    setImportPanelKey((k) => k + 1);
+    pushSuccess("入力を消して、最初からに戻しました");
+  }
 
   if (!formatSlug) {
     return (
@@ -397,11 +435,24 @@ export function CreatePage() {
           ← トップ
         </Button>
 
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
-          <h1 className="text-xl font-semibold text-en-text md:text-2xl">{activeFormat?.title ?? "資料"}</h1>
-          <span className="rounded-md bg-en-primary/15 px-2 py-0.5 text-[10px] font-semibold text-en-primary-bright">
-            見積PDF → 全8枚
-          </span>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h1 className="text-xl font-semibold text-en-text md:text-2xl">{activeFormat?.title ?? "資料"}</h1>
+            <span className="rounded-md bg-en-primary/15 px-2 py-0.5 text-[10px] font-semibold text-en-primary-bright">
+              見積PDF → 全8枚
+            </span>
+          </div>
+          {(pdfLoaded || inlinePrompt) && (
+            <motion.button
+              type="button"
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleStartOver}
+              className="rounded-full border border-en-border px-3 py-1.5 text-xs font-medium text-en-muted transition-colors hover:border-en-primary/40 hover:text-en-text"
+            >
+              最初からやり直す
+            </motion.button>
+          )}
         </div>
 
         {bannerError && (
@@ -421,8 +472,7 @@ export function CreatePage() {
         )}
 
         <EstimatePdfImportPanel
-          brief={brief}
-          tuning={tuning}
+          key={importPanelKey}
           promptResult={inlinePrompt}
           onApplied={handlePdfApplied}
           onAutoGenerate={handleAutoGenerateFromPdf}

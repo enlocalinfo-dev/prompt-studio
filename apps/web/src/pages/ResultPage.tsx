@@ -108,7 +108,7 @@ export function ResultPage() {
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="pb-28"
       >
-        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create/b")}>
+        <Button variant="ghost" className="!px-0 !py-1" onClick={() => nav("/create/b", { state: { continueDraft: true } })}>
           ← 作成画面に戻る
         </Button>
 

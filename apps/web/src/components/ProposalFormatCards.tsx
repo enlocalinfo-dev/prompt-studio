@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCreatePath, formatRulesPath, type ProposalFormatDef } from "../lib/proposalFormats";
+import { resetCreateDraft } from "../lib/storage";
 import { useProposalFormats } from "../hooks/useProposalFormats";
 import { AddProposalFormatModal } from "./AddProposalFormatModal";
 import { removeCustomProposalFormat } from "../lib/customProposalFormats";
@@ -73,7 +74,10 @@ export function ProposalFormatCards({ compact, mode = "create" }: { compact?: bo
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => nav(formatCreatePath(f.createSlug))}
+                    onClick={() => {
+                      resetCreateDraft();
+                      nav(formatCreatePath(f.createSlug));
+                    }}
                     className="flex-1 rounded-xl bg-en-primary/90 px-3 py-2.5 text-xs font-medium text-en-on-primary hover:bg-en-primary"
                   >
                     PDFで作成

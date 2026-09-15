@@ -1,5 +1,6 @@
 import type { PromptSegment, ReferenceDocument, TrainingDeliveryBrief, TuningB } from "@prompt-studio/core";
-import { mergeExpandedIntoBrief } from "@prompt-studio/core";
+import { defaultTuning, emptyTrainingBrief, mergeExpandedIntoBrief } from "@prompt-studio/core";
+import { todayJa } from "../lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postExpandBriefFromPdf } from "../lib/api";
@@ -31,8 +32,6 @@ export type InlinePromptResult = {
 export type PdfPhase = "idle" | "parsing" | "generating" | "ready" | "error";
 
 interface Props {
-  brief: TrainingDeliveryBrief;
-  tuning: TuningB;
   promptResult: InlinePromptResult | null;
   onApplied: (payload: PdfAppliedPayload) => void;
   onAutoGenerate: (payload: PdfAppliedPayload) => Promise<InlinePromptResult>;
@@ -41,8 +40,6 @@ interface Props {
 }
 
 export function EstimatePdfImportPanel({
-  brief,
-  tuning,
   promptResult,
   onApplied,
   onAutoGenerate,
@@ -85,12 +82,14 @@ export function EstimatePdfImportPanel({
         const expandBody = await buildExpandBriefRequest(file, extractedText);
         const { expanded, usedLlm } = await postExpandBriefFromPdf(expandBody);
 
-        const nextBrief = mergeExpandedIntoBrief(brief, expanded.brief ?? {});
+        const defaults = defaultTuning("B", todayJa()) as TuningB;
+        const nextBrief = mergeExpandedIntoBrief(emptyTrainingBrief(), expanded.brief ?? {});
         const nextTuning: TuningB = {
-          ...tuning,
-          clientName: expanded.tuning?.clientName?.trim() || tuning.clientName,
-          projectTitle: expanded.tuning?.projectTitle?.trim() || tuning.projectTitle,
-          documentDate: expanded.tuning?.documentDate?.trim() || tuning.documentDate,
+          ...defaults,
+          clientName: expanded.tuning?.clientName?.trim() || "",
+          projectTitle: expanded.tuning?.projectTitle?.trim() || "",
+          documentDate: expanded.tuning?.documentDate?.trim() || todayJa(),
+          proposerName: expanded.tuning?.proposerName?.trim() || defaults.proposerName,
         };
 
         const refText =
@@ -138,7 +137,7 @@ export function EstimatePdfImportPanel({
         if (fileRef.current) fileRef.current.value = "";
       }
     },
-    [brief, onApplied, onAutoGenerate, pushError, pushSuccess, setPhase, tuning],
+    [onApplied, onAutoGenerate, pushError, pushSuccess, setPhase],
   );
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import {
   getFormatByRulesSlug,
   type ProposalFormatDef,
 } from "../lib/proposalFormats";
+import { resetCreateDraft } from "../lib/storage";
 import {
   clearPromptRuleOverrides,
   loadPromptRuleOverrides,
@@ -291,6 +292,7 @@ function PromptRulesEditor({ format }: { format: ProposalFormatDef }) {
               {format.available && (
                 <Link
                   to={formatCreatePath(format.createSlug)}
+                  onClick={() => resetCreateDraft()}
                   className="inline-flex items-center justify-center rounded-xl border border-en-border px-4 py-2.5 text-center text-sm text-en-text hover:border-en-primary/40"
                 >
                   見積PDFで作成へ

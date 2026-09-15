@@ -95,6 +95,57 @@ export function saveTrainingBrief(brief: TrainingDeliveryBrief): void {
   localStorage.setItem(BRIEF_KEY, JSON.stringify(brief));
 }
 
+const DRAFT_ACTIVE_KEY = "prompt-studio-create-draft-active";
+
+export type CreatePageNavState = {
+  restoreHistoryId?: string;
+  continueDraft?: boolean;
+};
+
+export function isCreateDraftActive(): boolean {
+  try {
+    return sessionStorage.getItem(DRAFT_ACTIVE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markCreateDraftActive(): void {
+  try {
+    sessionStorage.setItem(DRAFT_ACTIVE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function freshTuningB(): TuningB {
+  return defaultTuning("B", todayJa()) as TuningB;
+}
+
+/** 新規作成時：前回PDFの入力・下書きフラグを消す（履歴・プロンプト詳細は残す） */
+export function resetCreateDraft(): void {
+  try {
+    sessionStorage.removeItem(DRAFT_ACTIVE_KEY);
+  } catch {
+    /* ignore */
+  }
+  saveTrainingBrief(defaultTrainingBrief());
+  saveTuningB(freshTuningB());
+  saveExtraNotes("");
+}
+
+function isDocumentReload(): boolean {
+  if (typeof performance === "undefined") return false;
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return nav?.type === "reload";
+}
+
+/** 履歴再開・詳細から戻る・作成中の再読み込み以外は、前回PDFを引き継がない */
+export function shouldKeepCreateDraft(state: CreatePageNavState | null | undefined): boolean {
+  if (state?.restoreHistoryId || state?.continueDraft) return true;
+  return isDocumentReload() && isCreateDraftActive();
+}
+
 const HISTORY_KEY = "prompt-studio-history-v1";
 const HISTORY_MAX = 5;
 

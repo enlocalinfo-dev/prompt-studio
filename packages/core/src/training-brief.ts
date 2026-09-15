@@ -28,6 +28,17 @@ export function defaultTrainingBrief(): TrainingDeliveryBrief {
   };
 }
 
+/** 見積PDFの新規読み込み用。前回案件・ひな形の文言を混ぜない */
+export function emptyTrainingBrief(): TrainingDeliveryBrief {
+  return {
+    targetParticipants: "",
+    trainingStartPeriod: "",
+    mainEffects: "",
+    trainingFeeExTax: "",
+    subsidyAndNet: "",
+  };
+}
+
 /** 旧フォーム localStorage からの移行 */
 export function normalizeTrainingBrief(raw: unknown): TrainingDeliveryBrief {
   const d = defaultTrainingBrief();
