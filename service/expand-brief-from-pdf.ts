@@ -24,6 +24,17 @@ function parseJson(text: string, extractedText?: string): ExpandedFromEstimate {
   return parseExpandBriefJson(text, extractedText);
 }
 
+function friendlyExpandError(raw: string): string {
+  const t = raw || "";
+  if (/401|authentication_error|API key is invalid|invalid x-api-key/i.test(t)) {
+    return "Claude（Anthropic）のAPIキーが無効です。Vercelの環境変数 ANTHROPIC_API_KEY を新しいキーに差し替えて、再デプロイしてください。キーはチャットに貼らないでください。";
+  }
+  if (/429|rate_limit/i.test(t)) {
+    return "読み取りが混み合っています。1分ほど待ってから、同じPDFをもう一度入れてください。";
+  }
+  return `画像PDFの読み取りに失敗しました。しばらくしてから、同じPDFをもう一度入れてください。`;
+}
+
 export async function expandBriefFromEstimatePdf(
   body: ExpandBriefPdfPayload,
 ): Promise<{ expanded: ExpandedFromEstimate; usedLlm: boolean }> {
@@ -128,9 +139,7 @@ ${EXPAND_BRIEF_JSON_SCHEMA}`;
   }
 
   if (pageImages?.length && !extractedText?.trim()) {
-    throw new Error(
-      `画像PDFの読み取りに失敗しました。しばらくしてから、同じPDFをもう一度入れてください。${lastError ? `（${lastError.slice(0, 120)}）` : ""}`,
-    );
+    throw new Error(friendlyExpandError(lastError));
   }
 
   return { expanded: heuristic, usedLlm: false };
